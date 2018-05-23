@@ -1,4 +1,9 @@
 #!/bin/bash
+
+set -e
+set -u
+
+
 FOLDER=$1
 ROUND=$2
 

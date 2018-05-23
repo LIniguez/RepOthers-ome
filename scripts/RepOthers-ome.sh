@@ -76,17 +76,20 @@ mkdir -p ${folder_gral}/
 if [ $paired == "TRUE" ];
 then
  fastq=${folder_gral}/test_joined.fastq
- perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq1} 1 >${fastq}
- perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq2} 2 >>${fastq}
+ >${fastq}
+ cat ${fastq1} | parallel --tmpdir ${folder_gral} --block 500M -j ${numpro} --pipe -L 4000000 --cat perl\ -e\ \'\{open\(IN,\$ARGV\[0\]\)\;\ while\(\<IN\>\)\{@vec\=split\(\"\ \",\$_\)\;\$l\=\$vec\[0\].\"_\".\$ARGV\[1\].\"\\n\"\;\ \$a\=\<IN\>\;\$b\=\<IN\>\;\$c\=\<IN\>\;print\ \"\$l\$a+\\n\$c\"\;\}\}\'\ \{\}\ 1 >>${fastq}
+ cat ${fastq2} | parallel --tmpdir ${folder_gral} --block 500M -j ${numpro} --pipe -L 4000000 --cat perl\ -e\ \'\{open\(IN,\$ARGV\[0\]\)\;\ while\(\<IN\>\)\{@vec\=split\(\"\ \",\$_\)\;\$l\=\$vec\[0\].\"_\".\$ARGV\[1\].\"\\n\"\;\ \$a\=\<IN\>\;\$b\=\<IN\>\;\$c\=\<IN\>\;print\ \"\$l\$a+\\n\$c\"\;\}\}\'\ \{\}\ 2 >>${fastq}
 fi
 
 
-out_1=${folder_gral}/test_single_4.SAM
+
+
+
 unali=${folder_gral}/test_unalign.bz2
-out_1=${folder_gral}/test_single_4.SAM
-out_2=${folder_gral}/test_single_100.SAM
-out_3=${folder_gral}/test_single_500.SAM
-out_4=${folder_gral}/test_single_splicesites.SAM
+out_1=${folder_gral}/k4.SAM
+out_2=${folder_gral}/k100.SAM
+out_3=${folder_gral}/k500.SAM
+out_4=${folder_gral}/hisat_k500.SAM
 folder1=${folder_gral}/mapping_4
 folder2=${folder_gral}/mapping_100
 folder3=${folder_gral}/mapping_500
@@ -99,7 +102,7 @@ out_rand=${folder_gral}/random
 
 
 
-awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort -V -k1,1 -k2,2n -u >${folder_gral}/exons_anotation.bed
+parallel --pipepart -a ${exons} -j ${numpro} --block -1 -q awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n -u >${folder_gral}/exons_anotation.bed
 >${folder_gral}/summary.txt
 >${folder_gral}/RepOthers-ome.log
 
@@ -107,25 +110,26 @@ echo "Mapping"
 echo " Bowtie2 -k4"
 #First Bowtie2 with a small number of possible alignments
 bowtie2 --un-bz2 ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 -S ${out_1} --very-sensitive-local -x ${bow_index} -U ${fastq} &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder1} ${out_1} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 4 &>> ${folder_gral}/RepOthers-ome.log
-rm ${out_1}
+filter_SAM.sh ${numpro} ${folder1} ${out_1} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 4 1>> ${folder_gral}/RepOthers-ome.log
+#rm ${out_1}
 echo " Bowtie2 -k100"
 #Second round
 bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 100 -S ${out_2} --very-sensitive-local -x ${bow_index} -U ${folder1}/4knext.fastq &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder2} ${out_2} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 100 &>> ${folder_gral}/RepOthers-ome.log
-rm ${out_2}
+filter_SAM.sh ${numpro} ${folder2} ${out_2} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 100 1>> ${folder_gral}/RepOthers-ome.log
+#rm ${out_2}
 echo " Bowtie2 -k500"
 #Third round
 bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 -S ${out_3} --very-sensitive-local -x ${bow_index} -U ${folder2}/4knext.fastq &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder3} ${out_3} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
-rm ${out_3}
+filter_SAM.sh ${numpro} ${folder3} ${out_3} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 1>> ${folder_gral}/RepOthers-ome.log
+#rm ${out_3}
 echo " hisat2"
 #hisat2
 hisat2 -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}/novel.spli.bed -k 500 -p ${numpro} --no-unal -S ${out_4} &>> ${folder_gral}/RepOthers-ome.log
 echo -e "Spliced Reads:\n\n" >> ${folder_gral}/summary.txt
-filter_SAM.sh ${numpro} ${folder4} ${out_4} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
+filter_SAM.sh ${numpro} ${folder4} ${out_4} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 1>> ${folder_gral}/RepOthers-ome.log
 sort -V -k1,1 -k2,2n ${folder_gral}/novel.spli.bed > ${folder_gral}/splicesites_sorted.bed
-rm ${folder_gral}/novel.spli.bed ${out_4} ${unali}
+#rm ${out_4}
+rm ${folder_gral}/novel.spli.bed ${unali}
 echo "Done"
 
 
@@ -154,7 +158,7 @@ coverage2transcrip.sh ${numpro} ${folder5} ${folder1} ${folder2} ${folder3} ${fo
 echo "Done"
 
 echo "Telescope"
-network_analysis.sh 1500 ${folder5} ${folder6} ${folder_gral}/gen4samt.txt &>> ${folder_gral}/RepOthers-ome.log 
+network_analysis.sh 1500 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
 rm ${folder_gral}/gen4bedt.txt ${folder_gral}/gen4samt.txt
 echo "Done"
 
@@ -196,7 +200,7 @@ then
 fi
 
 echo "Done"
-echo "Thanks for using RepOthers-ome"
+echo "###################   Thanks for using RepOthers-ome   #####################################"
 
 
 
@@ -220,5 +224,23 @@ echo "Thanks for using RepOthers-ome"
 #igraph
 #Rsubread
 #hisat2
+#parallel
+
+
+#O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
+#  ;login: The USENIX Magazine, February 2011:42-47.
+
+#@article{Tange2011a,
+# title = {GNU Parallel - The Command-Line Power Tool},
+# author = {O. Tange},
+# address = {Frederiksberg, Denmark},
+# journal = {;login: The USENIX Magazine},
+# month = {Feb},
+# number = {1},
+# volume = {36},
+# url = {http://www.gnu.org/s/parallel},
+# year = {2011},
+# pages = {42-47}
+#}
 
 
