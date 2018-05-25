@@ -63,7 +63,7 @@ ROUND2=$(($ROUND+1))
 cat ${FOLDER}/${ROUND}_modified2.sam ${FOLDER}/${ROUND}_flag2562.sam | awk '{b=$1","$3","$4; if (!(b in a)){a[b] = $0;} } END { for (i in a) print a[i]}'| sort -V -k1,1 -k2,2n  > ${FOLDER}/${ROUND2}.SAM
 
 
-parallel --pipepart -k --block -1 -j ${NUMPROC} -a ${FOLDER}/${ROUND2}.SAM -q awk '{if ($13~/XS/){print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21;}else{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20;}}' OFS="\t" > ${FOLDER}/${ROUND}_modified2.sam
+parallel --pipepart --tmpdir ${FOLDER}/  -k --block -1 -j ${NUMPROC} -a ${FOLDER}/${ROUND2}.SAM -q awk '{if ($13~/XS/){print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21;}else{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20;}}' OFS="\t" > ${FOLDER}/${ROUND}_modified2.sam
 cat ${FOLDER}/header.txt ${FOLDER}/${ROUND}_modified2.sam > ${FOLDER}/${ROUND2}.SAM
 rm  ${FOLDER}/${ROUND}_readnonuniq.txt ${FOLDER}/${ROUND}_modified2.sam ${FOLDER}/${ROUND}_readcorrection.txt ${FOLDER}/${ROUND}_flag016.sam ${FOLDER}/${ROUND}_flag256.sam ${FOLDER}/${ROUND}_flag2562.sam ${FOLDER}/${ROUND}_flag0162.sam
 

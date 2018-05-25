@@ -3,27 +3,33 @@
 set -e
 set -u
 
+# NUMPR=$1
+# FOLDER=$2
+# SAM=$3
+# SUMMARY_T=$4
+# EXONS=$5
+# RTRNACHRM=$6
+# MAXALL=$7
+
 NUMPR=$1
 FOLDER=$2
-SAM=$3
-SUMMARY_T=$4
-EXONS=$5
-RTRNACHRM=$6
-MAXALL=$7
+SUMMARY_T=$3
+EXONS=$4
+RTRNACHRM=$5
+MAXALL=$6
 
-mkdir -p ${FOLDER}
+
+#mkdir -p ${FOLDER}
 #remove header
 #samtools view -@ ${NUMPR} ${SAM} > ${FOLDER}/temp.sam #no es necesario solo un cp ya que te lo manda en SAM ordenado por read y best
-mv ${SAM} ${FOLDER}/temp.sam
-samtools view -H ${FOLDER}/temp.sam > ${FOLDER}/header.txt
-
+#mv ${SAM} ${FOLDER}/temp.sam
+#samtools view -H ${FOLDER}/temp.sam > ${FOLDER}/header.txt
+grep -P '@SQ' ${FOLDER}/header.txt| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDER}/header_mod.txt
+rm ${FOLDER}/header.txt
 
 
 # >${FOLDER}/multiple.SAM
 # >${FOLDER}/uniq.SAM
-
-
-
 # awk -v SRR="${FOLDER}/" '{
  # if($1~/^@/) {next;} #Remove header sequencs
  # if(($2-256)<0){ #check if the alignment is the principal
@@ -32,39 +38,36 @@ samtools view -H ${FOLDER}/temp.sam > ${FOLDER}/header.txt
    # print $0 >> SRR"multiple.SAM"; print $1,a[3]; #print it to multiple.SAM and retain the info of the alignement score
   # }else{print $0 >> SRR"uniq.SAM";}
  # }else{ print $0 >> SRR"multiple.SAM";}}' OFS="\t" ${FOLDER}/temp.sam > ${FOLDER}/best_alscor.txt
+# parallel --pipepart --tmpdir ${FOLDER}/ --block -1 -j ${NUMPR} -a ${FOLDER}/temp.sam -q awk -v SRR="${FOLDER}/{%}_" '{
+ # if($1~/^@/) {next;} #Remove header sequencs
+ # if(($2-256)<0){ #check if the alignment is the principal
+  # if($13~/XS/){  #if the alignment has XS it means it has multiple positions
+   # split($12,a,":");
+   # print $0 >> SRR"multiple.SAM"; print $1,a[3]; #print it to multiple.SAM and retain the info of the alignement score
+  # }else{print $0 >> SRR"uniq.SAM";}
+ # }else{ print $0 >> SRR"multiple.SAM";}}' OFS="\t"  > ${FOLDER}/best_alscor.txt
+# if ls ${FOLDER}/*_uniq.SAM >/dev/null 2>&1 
+# then
+ # cat ${FOLDER}/*_uniq.SAM > ${FOLDER}/unique.SAM
+ # rm ${FOLDER}/*_uniq.SAM
+# else
+ # > ${FOLDER}/unique.SAM
+# fi
+# if ls ${FOLDER}/*_multiple.SAM >/dev/null 2>&1 
+# then
+ # cat ${FOLDER}/*_multiple.SAM > ${FOLDER}/multiple.SAM
+ # rm ${FOLDER}/*_multiple.SAM
+# else
+ # > ${FOLDER}/multiple.SAM
+# fi
+#cut -f 1 ${FOLDER}/multiple.SAM | sort --parallel ${NUMPR} | uniq -c > ${FOLDER}/nummapped.txt
+#parallel --pipepart --block -1 -j ${NUMPR} -a ${FOLDER}/nummapped.txt -q awk -v MAX=${MAXALL} '{ if ($1 < MAX){ print $2;}}'  > ${FOLDER}/multreads_done.txt
 
- 
-parallel --pipepart --block -1 -j ${NUMPR} -a ${FOLDER}/temp.sam -q awk -v SRR="${FOLDER}/{%}_" '{
- if($1~/^@/) {next;} #Remove header sequencs
- if(($2-256)<0){ #check if the alignment is the principal
-  if($13~/XS/){  #if the alignment has XS it means it has multiple positions
-   split($12,a,":");
-   print $0 >> SRR"multiple.SAM"; print $1,a[3]; #print it to multiple.SAM and retain the info of the alignement score
-  }else{print $0 >> SRR"uniq.SAM";}
- }else{ print $0 >> SRR"multiple.SAM";}}' OFS="\t"  > ${FOLDER}/best_alscor.txt
- 
- 
-if ls ${FOLDER}/*_uniq.SAM >/dev/null 2>&1 
-then
- cat ${FOLDER}/*_uniq.SAM > ${FOLDER}/uniq.SAM
- rm ${FOLDER}/*_uniq.SAM
-else
- > ${FOLDER}/uniq.SAM
-fi
-
-if ls ${FOLDER}/*_multiple.SAM >/dev/null 2>&1 
-then
- cat ${FOLDER}/*_multiple.SAM > ${FOLDER}/multiple.SAM
- rm ${FOLDER}/*_multiple.SAM
-else
- > ${FOLDER}/multiple.SAM
-fi
-
-
-cut -f 1 ${FOLDER}/multiple.SAM | sort --parallel ${NUMPR} | uniq -c > ${FOLDER}/nummapped.txt 
-parallel --pipepart --block -1 -j ${NUMPR} -a ${FOLDER}/nummapped.txt -q awk -v MAX=${MAXALL} '{ if ($1 < MAX){ print $2;}}'  > ${FOLDER}/multreads_done.txt
-
-   
+perl -e '{open(IN,"$ARGV[0]");
+ while(<IN>){
+ @vec=split("\t",$_);$h{$vec[0]}++;}
+ foreach $read(keys %h){
+ if( $h{$read} < $ARGV[1] ){ print "$read\n";}}}' ${FOLDER}/multiple.SAM ${MAXALL}> ${FOLDER}/multreads_done.txt
 
 #cut -f 1 ${FOLDER}/multiple.SAM | uniq -c > ${FOLDER}/nummapped.txt
 #awk -v MAX=${MAXALL} '{ if ($1 < MAX){ print $2;}}' ${FOLDER}/nummapped.txt > ${FOLDER}/multreads_done.txt #check if the number of possible mappings is less than the maximum
@@ -84,58 +87,44 @@ perl -e '{ open(RD, "$ARGV[0]"); while($l=<RD>){chomp $l; $h{$l}=1;} #reads with
   }' ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt ${FOLDER}/multiple.SAM ${FOLDER}/multiple_temp.SAM ${FOLDER}/readcount.txt >  ${FOLDER}/4knext.SAM
 
 perl -e '{ open (REC, "$ARGV[0]"); while ($l=<REC>){ chomp $l; @vec=split("\t",$l); if($vec[1]==1){$un{$vec[0]}=1;}} #A multiple mapped read can change to be uniquely mapped
- open(MS, "$ARGV[1]"); open(UNQ, ">$ARGV[2]"); 
+ open(MS, "$ARGV[1]"); open(UNQ, ">>$ARGV[2]"); 
  while (<MS>){
   @vec=split("\t",$_);
   if($un{$vec[0]}){print UNQ $_;}else{print $_;}
- }}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/uniq2.SAM > ${FOLDER}/multiple_done.SAM
+ }}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/unique.SAM > ${FOLDER}/multiple.SAM
 
-cat ${FOLDER}/header.txt ${FOLDER}/uniq.SAM ${FOLDER}/uniq2.SAM > ${FOLDER}/unique.SAM
+#cat ${FOLDER}/header.txt ${FOLDER}/uniq.SAM ${FOLDER}/uniq2.SAM > ${FOLDER}/unique.SAM
 
 echo "Unique mapped reads:" >> ${SUMMARY_T}
-echo $(($(wc -l ${FOLDER}/unique.SAM| cut -f 1 -d " ") - $(wc -l ${FOLDER}/header.txt| cut -f 1 -d " "))) >> ${SUMMARY_T}
+echo $(wc -l ${FOLDER}/unique.SAM| cut -f 1 -d " ") >> ${SUMMARY_T}
 echo "Multiple mapped reads: " >> ${SUMMARY_T}
 echo $(cut -f 1 ${FOLDER}/multiple.SAM | sort --parallel ${NUMPR} -u | wc -l) >> ${SUMMARY_T}
 echo "Reads with max mapping (k=" $MAXALL "):">> ${SUMMARY_T}
 echo $(wc -l ${FOLDER}/4knext.SAM|cut -f 1 -d " ") >> ${SUMMARY_T}
 
-
-cat ${FOLDER}/header.txt ${FOLDER}/multiple_done.SAM > ${FOLDER}/multiple2.SAM
-mv ${FOLDER}/multiple2.SAM ${FOLDER}/multiple.SAM
-
-cat ${FOLDER}/header.txt ${FOLDER}/4knext.SAM > ${FOLDER}/4knext2.SAM
-mv ${FOLDER}/4knext2.SAM ${FOLDER}/4knext.SAM
-samtools view -@ ${NUMPR} -b ${FOLDER}/4knext.SAM > ${FOLDER}/4knext.BAM
+samtools view -@ ${NUMPR} -b ${FOLDER}/4knext.SAM -t ${FOLDER}/header_mod.txt > ${FOLDER}/4knext.BAM
 samtools fastq -n ${FOLDER}/4knext.BAM > ${FOLDER}/4knext.fastq 2>/dev/null
-rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/uniq2.SAM ${FOLDER}/multiple_temp.SAM ${FOLDER}/multreads_done.txt ${FOLDER}/nummapped.txt ${FOLDER}/best_alscor.txt ${FOLDER}/temp.sam ${FOLDER}/uniq.SAM ${FOLDER}/multiple_done.SAM
+rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/multreads_done.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/best_alscor.txt
 
-
-parallel --pipepart -k --block -1 -j ${NUMPR} -a ${FOLDER}/unique.SAM -q sed -e '/^\s*$/d' > ${FOLDER}/uniq2.SAM
+sed -e '/^\s*$/d' ${FOLDER}/unique.SAM > ${FOLDER}/uniq2.SAM
 mv ${FOLDER}/uniq2.SAM ${FOLDER}/unique.SAM
-samtools view -@ ${NUMPR} -h -L ${RTRNACHRM} -U ${FOLDER}/uniq_nortRNAM.SAM ${FOLDER}/unique.SAM > ${FOLDER}/rtRNAchrM.SAM
-samtools view -@ ${NUMPR} -h -L ${EXONS} -U ${FOLDER}/uniq_noexons_nortRNAM.SAM ${FOLDER}/uniq_nortRNAM.SAM > ${FOLDER}/exons.SAM
-
-
-
+samtools view -@ ${NUMPR} -b -h -L ${RTRNACHRM} -U ${FOLDER}/uniq_nortRNAM.BAM -t ${FOLDER}/header_mod.txt ${FOLDER}/unique.SAM > ${FOLDER}/rtRNAchrM.BAM
+samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/uniq_nortRNAM.BAM > ${FOLDER}/exons.BAM
 
 echo "Reads unique mapped to exons:" >> ${SUMMARY_T}
-echo $(($(wc -l ${FOLDER}/exons.SAM| cut -f 1 -d " ") - $(wc -l ${FOLDER}/header.txt| cut -f 1 -d " "))) >> ${SUMMARY_T}
+echo $(samtools stats ${FOLDER}/exons.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
 echo "Reads unique mapped to rtRNA and chrM:" >> ${SUMMARY_T}
-echo $(($(wc -l ${FOLDER}/rtRNAchrM.SAM| cut -f 1 -d " ") - $(wc -l ${FOLDER}/header.txt| cut -f 1 -d " "))) >> ${SUMMARY_T}
+echo $(samtools stats ${FOLDER}/rtRNAchrM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
 echo "Reads unique mapped left:" >> ${SUMMARY_T}
-echo $(($(wc -l ${FOLDER}/uniq_noexons_nortRNAM.SAM| cut -f 1 -d " ") - $(wc -l ${FOLDER}/header.txt| cut -f 1 -d " "))) >> ${SUMMARY_T}
+echo $(samtools stats ${FOLDER}/uniq_noexons_nortRNAM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
 
-rm ${FOLDER}/uniq_nortRNAM.SAM ${FOLDER}/unique.SAM
+rm ${FOLDER}/uniq_nortRNAM.BAM ${FOLDER}/unique.SAM
 
-
-samtools view -@ ${NUMPR} -L ${RTRNACHRM} -U ${FOLDER}/multiple_nortRNAM.SAM ${FOLDER}/multiple.SAM > ${FOLDER}/rtRNAchrM_multiple.SAM
+samtools view -@ ${NUMPR} -L ${RTRNACHRM} -U ${FOLDER}/multiple_nortRNAM.SAM -t ${FOLDER}/header_mod.txt ${FOLDER}/multiple.SAM > ${FOLDER}/rtRNAchrM_multiple.SAM
 cut -f 1 ${FOLDER}/rtRNAchrM_multiple.SAM | sort --parallel ${NUMPR} -u > ${FOLDER}/trashreads_rtRNAM.txt
-cat ${FOLDER}/header.txt ${FOLDER}/multiple_nortRNAM.SAM > ${FOLDER}/multiple_nortRNAM2.SAM
-mv ${FOLDER}/multiple_nortRNAM2.SAM ${FOLDER}/multiple_nortRNAM.SAM
-samtools view -@ ${NUMPR} -L ${EXONS} -U ${FOLDER}/multiple_noexons_nortRNAM.SAM ${FOLDER}/multiple_nortRNAM.SAM > ${FOLDER}/exons_multiple.SAM
+samtools view -@ ${NUMPR} -L ${EXONS} -U ${FOLDER}/multiple_noexons_nortRNAM.SAM -t ${FOLDER}/header_mod.txt ${FOLDER}/multiple_nortRNAM.SAM > ${FOLDER}/exons_multiple.SAM
 cut -f 1 ${FOLDER}/exons_multiple.SAM | sort --parallel ${NUMPR} -u > ${FOLDER}/trashreads_exons.txt
-
-
+	
 echo "Reads multiple mapped to exons:" >> ${SUMMARY_T}
 echo $(wc -l ${FOLDER}/trashreads_exons.txt| cut -f 1 -d " ") >> ${SUMMARY_T}
 echo "Reads multiple mapped to rtRNA and chrM:" >> ${SUMMARY_T}
@@ -143,32 +132,27 @@ echo $(wc -l ${FOLDER}/trashreads_rtRNAM.txt| cut -f 1 -d " ") >> ${SUMMARY_T}
 
 rm ${FOLDER}/multiple_nortRNAM.SAM ${FOLDER}/exons_multiple.SAM ${FOLDER}/rtRNAchrM_multiple.SAM ${FOLDER}/multiple.SAM
 
-cat ${FOLDER}/trashreads_exons.txt ${FOLDER}/trashreads_rtRNAM.txt >${FOLDER}/remove_multipleReads.txt
-perl -e '{open(RE,"$ARGV[0]"); while($l=<RE>){chomp $l;$re{$l}=1;}close(RE);
- open(SM, "$ARGV[1]");
+perl -e '{open(RE1,"$ARGV[0]"); while($l=<RE1>){chomp $l;$re{$l}=1;}close(RE1);
+ open(RE2,"$ARGV[1]"); while($l=<RE2>){chomp $l;$re{$l}=1;}close(RE2);
+ open(SM, "$ARGV[2]"); open (CNT, ">$ARGV[3]");
  while(<SM>){
   @vec=split("\t",$_);
-  if(!$re{$vec[0]}){print $_;}}}' ${FOLDER}/remove_multipleReads.txt ${FOLDER}/multiple_noexons_nortRNAM.SAM >${FOLDER}/DONE_multiple_k${MAXALL}.SAM
+  if(!$re{$vec[0]}){print $_; $h{$vec[0]}++;}
+ }foreach $read (keys %h){print CNT "$read\t$h{$read}\n";}
+ }' ${FOLDER}/trashreads_exons.txt ${FOLDER}/trashreads_rtRNAM.txt ${FOLDER}/multiple_noexons_nortRNAM.SAM ${FOLDER}/reads_passed.txt >${FOLDER}/DONE_multiple_k${MAXALL}.SAM
   
-rm ${FOLDER}/trashreads_exons.txt ${FOLDER}/trashreads_rtRNAM.txt ${FOLDER}/remove_multipleReads.txt ${FOLDER}/multiple_noexons_nortRNAM.SAM
+rm ${FOLDER}/trashreads_exons.txt ${FOLDER}/trashreads_rtRNAM.txt ${FOLDER}/multiple_noexons_nortRNAM.SAM 
 
 echo "Multiple mapped reads left:" >>  ${SUMMARY_T}
-cut -f 1 ${FOLDER}/DONE_multiple_k${MAXALL}.SAM | sort --parallel ${NUMPR} | uniq -c | awk '{print $1}' | sort --parallel ${NUMPR} | uniq -c >> ${SUMMARY_T}
-cat ${FOLDER}/header.txt ${FOLDER}/DONE_multiple_k${MAXALL}.SAM > ${FOLDER}/DONE_multiple_k${MAXALL}2.SAM
-mv ${FOLDER}/DONE_multiple_k${MAXALL}2.SAM ${FOLDER}/DONE_multiple_k${MAXALL}.SAM
+cut -f 2 ${FOLDER}/reads_passed.txt | sort --parallel ${NUMPR} | uniq -c >> ${SUMMARY_T}
 
-
-samtools view -@ ${NUMPR} -b ${FOLDER}/exons.SAM > ${FOLDER}/exons.BAM
-samtools view -@ ${NUMPR} -b ${FOLDER}/rtRNAchrM.SAM > ${FOLDER}/rtRNAchrM.BAM
-samtools view -@ ${NUMPR} -b ${FOLDER}/DONE_multiple_k${MAXALL}.SAM > ${FOLDER}/DONE_multiple_k${MAXALL}.BAM
-samtools view -@ ${NUMPR} -b ${FOLDER}/uniq_noexons_nortRNAM.SAM > ${FOLDER}/DONE_uniq_k${MAXALL}.BAM
+samtools view -@ ${NUMPR} -b ${FOLDER}/DONE_multiple_k${MAXALL}.SAM -t ${FOLDER}/header_mod.txt > ${FOLDER}/DONE_multiple_k${MAXALL}.BAM
 samtools sort -@ ${NUMPR} -o ${FOLDER}/exons_sorted.BAM ${FOLDER}/exons.BAM 2>/dev/null
 samtools sort -@ ${NUMPR} -o ${FOLDER}/rtRNAchrM_sorted.BAM ${FOLDER}/rtRNAchrM.BAM 2>/dev/null
 samtools sort -@ ${NUMPR} -o ${FOLDER}/DONE_multiple_k${MAXALL}_sorted.BAM ${FOLDER}/DONE_multiple_k${MAXALL}.BAM 2>/dev/null
-samtools sort -@ ${NUMPR} -o ${FOLDER}/DONE_uniq_k${MAXALL}_sorted.BAM ${FOLDER}/DONE_uniq_k${MAXALL}.BAM 2>/dev/null
+samtools sort -@ ${NUMPR} -o ${FOLDER}/DONE_uniq_k${MAXALL}_sorted.BAM ${FOLDER}/uniq_noexons_nortRNAM.BAM 2>/dev/null
 
-rm ${FOLDER}/exons.BAM ${FOLDER}/exons.SAM ${FOLDER}/rtRNAchrM.BAM ${FOLDER}/rtRNAchrM.SAM ${FOLDER}/header.txt ${FOLDER}/uniq_noexons_nortRNAM.SAM ${FOLDER}/DONE_uniq_k${MAXALL}.BAM ${FOLDER}/DONE_multiple_k${MAXALL}.SAM ${FOLDER}/DONE_multiple_k${MAXALL}.BAM
-
+rm ${FOLDER}/exons.BAM ${FOLDER}/rtRNAchrM.BAM ${FOLDER}/header_mod.txt ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/DONE_multiple_k${MAXALL}.SAM ${FOLDER}/DONE_multiple_k${MAXALL}.BAM ${FOLDER}/reads_passed.txt
 
 samtools view -@ ${NUMPR} -F 256 -b -h ${FOLDER}/DONE_multiple_k${MAXALL}_sorted.BAM > ${FOLDER}/multiple.BAM
 samtools fastq -n ${FOLDER}/multiple.BAM > ${FOLDER}/multiple4random.fastq 2>/dev/null

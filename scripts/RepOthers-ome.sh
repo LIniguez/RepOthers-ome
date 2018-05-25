@@ -71,25 +71,32 @@ else
 fi
 
 
+check_sam(){
+ awk -v FOLD="$1" '{
+ if($1~/^@/) {print $0 >> FOLD"/header.txt";} #Remove header sequencs
+ if(($2-256)<0){ #check if the alignment is the principal
+  if($13~/XS/){  #if the alignment has XS it means it has multiple positions
+   split($12,a,":");
+   print $0 >> FOLD"/multiple.SAM"; print $1,a[3]; #print it to multiple.SAM and retain the info of the alignement score
+  }else{print $0 >> FOLD"/unique.SAM";}
+ }else{ print $0 >> FOLD"/multiple.SAM";}}' OFS="\t"  
+}
+
+
+
 
 mkdir -p ${folder_gral}/
 if [ $paired == "TRUE" ];
 then
  fastq=${folder_gral}/test_joined.fastq
- >${fastq}
- cat ${fastq1} | parallel --tmpdir ${folder_gral} --block 500M -j ${numpro} --pipe -L 4000000 --cat perl\ -e\ \'\{open\(IN,\$ARGV\[0\]\)\;\ while\(\<IN\>\)\{@vec\=split\(\"\ \",\$_\)\;\$l\=\$vec\[0\].\"_\".\$ARGV\[1\].\"\\n\"\;\ \$a\=\<IN\>\;\$b\=\<IN\>\;\$c\=\<IN\>\;print\ \"\$l\$a+\\n\$c\"\;\}\}\'\ \{\}\ 1 >>${fastq}
- cat ${fastq2} | parallel --tmpdir ${folder_gral} --block 500M -j ${numpro} --pipe -L 4000000 --cat perl\ -e\ \'\{open\(IN,\$ARGV\[0\]\)\;\ while\(\<IN\>\)\{@vec\=split\(\"\ \",\$_\)\;\$l\=\$vec\[0\].\"_\".\$ARGV\[1\].\"\\n\"\;\ \$a\=\<IN\>\;\$b\=\<IN\>\;\$c\=\<IN\>\;print\ \"\$l\$a+\\n\$c\"\;\}\}\'\ \{\}\ 2 >>${fastq}
+ perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq1} 1 >${fastq}
+ perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq2} 2 >>${fastq}
 fi
 
 
 
-
-
-unali=${folder_gral}/test_unalign.bz2
-out_1=${folder_gral}/k4.SAM
-out_2=${folder_gral}/k100.SAM
-out_3=${folder_gral}/k500.SAM
-out_4=${folder_gral}/hisat_k500.SAM
+unali=${folder_gral}/unalign_temp.bz2
+unali2=${folder_gral}/unalign.bz2
 folder1=${folder_gral}/mapping_4
 folder2=${folder_gral}/mapping_100
 folder3=${folder_gral}/mapping_500
@@ -100,35 +107,45 @@ randfastq=${folder_gral}/for_random.fq
 out_rand=${folder_gral}/random
 
 
-
-
-parallel --pipepart -a ${exons} -j ${numpro} --block -1 -q awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n -u >${folder_gral}/exons_anotation.bed
+awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n -u >${folder_gral}/exons_anotation.bed
 >${folder_gral}/summary.txt
 >${folder_gral}/RepOthers-ome.log
 
+
+mkdir -p ${folder1}/
+> ${folder1}/unique.SAM
+> ${folder1}/multiple.SAM
 echo "Mapping"
 echo " Bowtie2 -k4"
 #First Bowtie2 with a small number of possible alignments
-bowtie2 --un-bz2 ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 -S ${out_1} --very-sensitive-local -x ${bow_index} -U ${fastq} &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder1} ${out_1} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 4 1>> ${folder_gral}/RepOthers-ome.log
-#rm ${out_1}
+bowtie2 --un-bz2 ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 --very-sensitive-local -x ${bow_index} -U ${fastq} 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder1} >${folder1}/best_alscor.txt 
+filter_SAM.sh ${numpro} ${folder1} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 4 &>> ${folder_gral}/RepOthers-ome.log
+
+mkdir -p ${folder2}/
+> ${folder2}/unique.SAM
+> ${folder2}/multiple.SAM
 echo " Bowtie2 -k100"
 #Second round
-bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 100 -S ${out_2} --very-sensitive-local -x ${bow_index} -U ${folder1}/4knext.fastq &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder2} ${out_2} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 100 1>> ${folder_gral}/RepOthers-ome.log
-#rm ${out_2}
+bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 100 --very-sensitive-local -x ${bow_index} -U ${folder1}/4knext.fastq 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder2} >${folder2}/best_alscor.txt 
+filter_SAM.sh ${numpro} ${folder2} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 100 &>> ${folder_gral}/RepOthers-ome.log
+
+mkdir -p ${folder3}/
+> ${folder3}/unique.SAM
+> ${folder3}/multiple.SAM
 echo " Bowtie2 -k500"
 #Third round
-bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 -S ${out_3} --very-sensitive-local -x ${bow_index} -U ${folder2}/4knext.fastq &>> ${folder_gral}/RepOthers-ome.log
-filter_SAM.sh ${numpro} ${folder3} ${out_3} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 1>> ${folder_gral}/RepOthers-ome.log
-#rm ${out_3}
+bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 --very-sensitive-local -x ${bow_index} -U ${folder2}/4knext.fastq 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder3} >${folder3}/best_alscor.txt 
+filter_SAM.sh ${numpro} ${folder3} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
+
+mkdir -p ${folder4}/
+> ${folder4}/unique.SAM
+> ${folder4}/multiple.SAM
 echo " hisat2"
 #hisat2
-hisat2 -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}/novel.spli.bed -k 500 -p ${numpro} --no-unal -S ${out_4} &>> ${folder_gral}/RepOthers-ome.log
-echo -e "Spliced Reads:\n\n" >> ${folder_gral}/summary.txt
-filter_SAM.sh ${numpro} ${folder4} ${out_4} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 1>> ${folder_gral}/RepOthers-ome.log
+hisat2 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}/novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder4} >${folder4}/best_alscor.txt 
+echo -e "\nSpliced Reads:\n" >> ${folder_gral}/summary.txt
+filter_SAM.sh ${numpro} ${folder4} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
 sort -V -k1,1 -k2,2n ${folder_gral}/novel.spli.bed > ${folder_gral}/splicesites_sorted.bed
-#rm ${out_4}
 rm ${folder_gral}/novel.spli.bed ${unali}
 echo "Done"
 
@@ -147,6 +164,14 @@ mincov=$(perl -e '{open(SEQ,"$ARGV[0]");$flag=0;while($l=<SEQ>){chomp $l; if($fl
 FindCoverCutoff.R ${out_rand}_all_rand.BAM ${readleng} 0.01 &>> ${folder_gral}/RepOthers-ome.log
 cutoff=$(head -n 2 ${out_rand}_CoverageCutoff.txt | tail -n 1| cut -f 2) #output de FindCoverCutoff.R
 rm ${folder_gral}/seq4leng.txt ${randfastq} ${out_rand}*BAM* ${out_rand}_CoverageCutoff.txt
+
+echo "Average read length:" >>${folder_gral}/summary.txt
+echo $readleng >>${folder_gral}/summary.txt
+echo "Min read length:" >>${folder_gral}/summary.txt
+echo $mincov >>${folder_gral}/summary.txt
+echo "Coverage Cutoff:" >>${folder_gral}/summary.txt
+echo $cutoff >>${folder_gral}/summary.txt
+
 echo "Done"
 
 
