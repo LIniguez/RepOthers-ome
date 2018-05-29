@@ -62,13 +62,11 @@ rm ${FOLDER}/header.txt
 # fi
 #cut -f 1 ${FOLDER}/multiple.SAM | sort --parallel ${NUMPR} | uniq -c > ${FOLDER}/nummapped.txt
 #parallel --pipepart --block -1 -j ${NUMPR} -a ${FOLDER}/nummapped.txt -q awk -v MAX=${MAXALL} '{ if ($1 < MAX){ print $2;}}'  > ${FOLDER}/multreads_done.txt
-
-perl -e '{open(IN,"$ARGV[0]");
- while(<IN>){
- @vec=split("\t",$_);$h{$vec[0]}++;}
- foreach $read(keys %h){
- if( $h{$read} < $ARGV[1] ){ print "$read\n";}}}' ${FOLDER}/multiple.SAM ${MAXALL}> ${FOLDER}/multreads_done.txt
-
+# perl -e '{open(IN,"$ARGV[0]");
+ # while(<IN>){
+ # @vec=split("\t",$_);$h{$vec[0]}++;}
+ # foreach $read(keys %h){
+ # if( $h{$read} < $ARGV[1] ){ print "$read\n";}}}' ${FOLDER}/multiple.SAM ${MAXALL}> ${FOLDER}/multreads_done.txt
 #cut -f 1 ${FOLDER}/multiple.SAM | uniq -c > ${FOLDER}/nummapped.txt
 #awk -v MAX=${MAXALL} '{ if ($1 < MAX){ print $2;}}' ${FOLDER}/nummapped.txt > ${FOLDER}/multreads_done.txt #check if the number of possible mappings is less than the maximum
 
