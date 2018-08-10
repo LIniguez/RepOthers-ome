@@ -16,12 +16,14 @@ BED=${FOLDER}/regions_sorted_coverage_filtered.bed
 
 mkdir -p ${FOLDERO}
 
-samtools sort -@ ${NUMPRO} -n -o ${FOLDERO}/${i}.BAM ${FOLDER}/ALL.BAM
-samtools view -@ ${NUMPRO} ${FOLDERO}/${i}.BAM > ${FOLDERO}/${i}_temp.SAM
-samtools view -H ${FOLDERO}/${i}.BAM |awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDERO}/header_mod.txt
-sort -T ${FOLDERO}/ --parallel ${NUMPRO} -k1,2 -V ${FOLDERO}/${i}_temp.SAM > ${FOLDERO}/${i}_sorted.SAM
-samtools view -h -@ ${NUMPRO} -t ${FOLDERO}/header_mod.txt > ${FOLDERO}/${i}.SAM
-rm ${FOLDERO}/${i}.BAM ${FOLDERO}/${i}_temp.SAM ${FOLDERO}/${i}_sorted.SAM
+samtools view -h -@ ${NUMPRO} ${FOLDER}/ALL.BAM > ${FOLDERO}/${i}.SAM
+samtools view -H ${FOLDERO}/${i}.SAM >${FOLDERO}/header.txt
+#samtools sort -@ ${NUMPRO} -n -o ${FOLDERO}/${i}.BAM ${FOLDER}/ALL.BAM
+#samtools view -@ ${NUMPRO} ${FOLDERO}/${i}.BAM > ${FOLDERO}/${i}_temp.SAM
+#samtools view -H ${FOLDERO}/${i}.BAM |awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDERO}/header_mod.txt
+#sort -T ${FOLDERO}/ --parallel ${NUMPRO} -k1,2 -V ${FOLDERO}/${i}_temp.SAM > ${FOLDERO}/${i}_sorted.SAM
+#samtools view -h -@ ${NUMPRO} -t ${FOLDERO}/header_mod.txt > ${FOLDERO}/${i}.SAM
+#rm ${FOLDERO}/${i}.BAM ${FOLDERO}/${i}_temp.SAM ${FOLDERO}/${i}_sorted.SAM
 
 
 cp ${FOLDER}/vertex_weight.txt ${FOLDERO}/vertex_weight.txt
@@ -32,7 +34,7 @@ do
  find_communities.R ${FOLDERO}/ ${i} ${MAX} ${WTM} 2>/dev/null
  
  mod_txt2gtf.sh ${FOLDERO}/ ${i}
- ls ${FOLDERO}/*_${i}.gtf | parallel -j ${NUMPRO} -q telescope assign --outdir ${FOLDERO}/ --tempdir ${FOLDERO}/ --exp_tag ${i}round_'{= s:_WT.+::; s:^.+${FOLDERO}/::; =}' --updated_sam ${FOLDERO}/${i}.SAM {}
+ ls ${FOLDERO}/*_${i}.gtf | parallel -j ${NUMPRO} -q telescope assign --outdir ${FOLDERO}/ --tempdir ${FOLDERO}/ --quiet --exp_tag ${i}round_'{= s:_WT.+::; s:^.+${FOLDERO}/::; =}' --updated_sam ${FOLDERO}/${i}.SAM {}
  for j in $(find ${FOLDERO}/*_${i}.gtf)
  do
   k=$(echo $j| rev | cut -f 4 -d "_" | cut -f 1 -d "/"| rev)
