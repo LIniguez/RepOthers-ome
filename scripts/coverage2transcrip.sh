@@ -15,18 +15,17 @@ mkdir -p ${FOLDERO}
 ##########
 # Une los archivos y convierte a SAM
 ########
-samtools merge -@ ${NUMPROC} -f ${FOLDERO}/uniq.BAM ${FOLDER1}/DONE_uniq_k4_sorted.BAM ${FOLDER2}/DONE_uniq_k100_sorted.BAM  ${FOLDER3}/DONE_uniq_k500_sorted.BAM
-samtools merge -@ ${NUMPROC} -f ${FOLDERO}/multiple.BAM ${FOLDER1}/DONE_multiple_k4_sorted.BAM ${FOLDER2}/DONE_multiple_k100_sorted.BAM ${FOLDER3}/DONE_multiple_k500_sorted.BAM
+samtools cat -o ${FOLDERO}/uniq.BAM ${FOLDER1}/DONE_uniq_k4.BAM ${FOLDER2}/DONE_uniq_k100.BAM  ${FOLDER3}/DONE_uniq_k500.BAM
+samtools cat -o ${FOLDERO}/multiple.BAM ${FOLDER1}/DONE_multiple_k4.BAM ${FOLDER2}/DONE_multiple_k100.BAM ${FOLDER3}/DONE_multiple_k500.BAM
 
-samtools merge -@ ${NUMPROC} -f ${FOLDERO}/ALL.BAM ${FOLDERO}/uniq.BAM ${FOLDERO}/multiple.BAM
+samtools cat -o ${FOLDERO}/ALL.BAM ${FOLDERO}/uniq.BAM ${FOLDERO}/multiple.BAM
 
 samtools view -@ ${NUMPROC} -b -L ${GEN4ST} ${FOLDERO}/uniq.BAM > ${FOLDERO}/uniq2.BAM
 samtools view -@ ${NUMPROC} -b -L ${GEN4ST} ${FOLDERO}/multiple.BAM > ${FOLDERO}/multiple2.BAM
+samtools sort -@ ${NUMPROC} -o ${FOLDERO}/uniq.BAM ${FOLDERO}/uniq2.BAM
+samtools sort -@ ${NUMPROC} -o ${FOLDERO}/multiple.BAM ${FOLDERO}/multiple2.BAM
 
-mv ${FOLDERO}/uniq2.BAM ${FOLDERO}/uniq.BAM
-mv ${FOLDERO}/multiple2.BAM ${FOLDERO}/multiple.BAM
-
-
+rm ${FOLDERO}/uniq2.BAM ${FOLDERO}/multiple2.BAM
 
 ##########
 # Ve la zonas que tienen covertura para los bam de unicos y no unicos
@@ -39,45 +38,35 @@ bedtools merge -d ${MINNCOV} -i ${FOLDERO}/multiple_cov.bed > ${FOLDERO}/multipl
 ##########
 # Junta las regiones de unicos y no unicos
 ########
-cat ${FOLDERO}/multiple_cov.bed ${FOLDERO}/uniq_cov.bed > ${FOLDERO}/all_cov.bed 
-sort --parallel ${NUMPROC} -V -k1,1 -k2,2n ${FOLDERO}/all_cov.bed > ${FOLDERO}/all_cov_sorted.bed
+cat ${FOLDERO}/multiple_cov.bed ${FOLDERO}/uniq_cov.bed | sort --parallel ${NUMPROC} -V -k1,1 -k2,2n > ${FOLDERO}/all_cov_sorted.bed
 bedtools merge -d ${MINNCOV} -i ${FOLDERO}/all_cov_sorted.bed > ${FOLDERO}/all_cov_merged.bed #todas las zonas 
-rm ${FOLDERO}/uniq_cov.bed ${FOLDERO}/multiple_cov.bed ${FOLDERO}/all_cov.bed ${FOLDERO}/all_cov_sorted.bed
+rm ${FOLDERO}/uniq_cov.bed ${FOLDERO}/multiple_cov.bed  ${FOLDERO}/all_cov_sorted.bed
 ##########
 # Calcula el Coverage de las regiones
 ########
 bedtools coverage -mean -sorted -a ${FOLDERO}/uniq_cov_merged.bed -b ${FOLDERO}/uniq.BAM > ${FOLDERO}/uniq_4cov.bed
 
 bedtools intersect -sorted -a ${FOLDERO}/all_cov_merged.bed -b ${FOLDERO}/multiple.BAM -wo >${FOLDERO}/multiple_intersect_reads.bed
-sort --parallel ${NUMPROC} -V -u -k 1,3 -k 7,7 ${FOLDERO}/multiple_intersect_reads.bed > ${FOLDERO}/multiple_intersect_reads_4cov.bed
-awk '{print $4,$5,$6}' OFS="\t" ${FOLDERO}/multiple_intersect_reads_4cov.bed | sort --parallel ${NUMPROC} -V -k 1,1 -k2,2n > ${FOLDERO}/multiple_intersect_4cov.bed
+sort --parallel ${NUMPROC} -V -u -k 1,3 -k 7,7 ${FOLDERO}/multiple_intersect_reads.bed | awk '{print $4,$5,$6}' OFS="\t" | sort --parallel ${NUMPROC} -V -k 1,1 -k2,2n > ${FOLDERO}/multiple_intersect_4cov.bed
 bedtools coverage -mean -sorted -a ${FOLDERO}/multiple_cov_merged.bed -b ${FOLDERO}/multiple_intersect_4cov.bed > ${FOLDERO}/multiple_4cov.bed
 
-bedtools intersect -wo -a ${FOLDERO}/all_cov_merged.bed -b ${FOLDERO}/multiple_4cov.bed ${FOLDERO}/uniq_4cov.bed > ${FOLDERO}/regions.bed
-awk '{ a=$7-$6;b=$8*a;print $5,$6,$7,b,a}' OFS="\t" ${FOLDERO}/regions.bed > ${FOLDERO}/regions_coverage.bed
-sort --parallel ${NUMPROC} -V -k1,1 -k2,2n ${FOLDERO}/regions_coverage.bed > ${FOLDERO}/regions_sorted_coverage.bed
-bedtools merge -d ${MINNCOV} -c 4 -o sum  -i ${FOLDERO}/regions_sorted_coverage.bed > ${FOLDERO}/regions_sorted_coverage_merged.bed
-awk '{a=$3-$2; b=$4/a; print $1,$2,$3,b}' OFS="\t" ${FOLDERO}/regions_sorted_coverage_merged.bed > ${FOLDERO}/regions_sorted_coverage.bed
-awk -v CUT="$CUT" '{if (!($4 <= CUT)){ print $0;}}' ${FOLDERO}/regions_sorted_coverage.bed > ${FOLDERO}/regions_sorted_coverage_filtered.bed
+bedtools intersect -wo -a ${FOLDERO}/all_cov_merged.bed -b ${FOLDERO}/multiple_4cov.bed ${FOLDERO}/uniq_4cov.bed | awk '{ a=$7-$6;b=$8*a;print $5,$6,$7,b,a}' OFS="\t" | sort --parallel ${NUMPROC} -V -k1,1 -k2,2n > ${FOLDERO}/regions_sorted_coverage.bed
+bedtools merge -d ${MINNCOV} -c 4 -o sum  -i ${FOLDERO}/regions_sorted_coverage.bed |awk '{a=$3-$2; b=$4/a; print $1,$2,$3,b}' OFS="\t" | awk -v CUT="$CUT" '{if (!($4 <= CUT)){ print $0;}}' > ${FOLDERO}/regions_sorted_coverage_filtered.bed
 
-
-rm ${FOLDERO}/uniq_cov_merged.bed ${FOLDERO}/multiple_cov_merged.bed ${FOLDERO}/multiple_intersect_reads.bed ${FOLDERO}/multiple_intersect_4cov.bed ${FOLDERO}/regions.bed ${FOLDERO}/regions_coverage.bed ${FOLDERO}/regions_sorted_coverage.bed ${FOLDERO}/regions_sorted_coverage_merged.bed 
+rm ${FOLDERO}/uniq_cov_merged.bed ${FOLDERO}/multiple_cov_merged.bed ${FOLDERO}/multiple_intersect_reads.bed ${FOLDERO}/multiple_intersect_4cov.bed  ${FOLDERO}/regions_sorted_coverage.bed 
 ##########
 # OUTPUT
 ########
 
-
-bedtools intersect -wo -a ${FOLDERO}/regions_sorted_coverage_filtered.bed -b ${FOLDERO}/multiple_4cov.bed ${FOLDERO}/uniq_4cov.bed > ${FOLDERO}/regions_filtered.bed
-sort --parallel ${NUMPROC} -V -k 6,6 -k 7,7 ${FOLDERO}/regions_filtered.bed > ${FOLDERO}/regions_filtered_sorted.bed
-rm ${FOLDERO}/uniq_4cov.bed ${FOLDERO}/multiple_4cov.bed ${FOLDERO}/regions_filtered.bed
+bedtools intersect -wo -a ${FOLDERO}/regions_sorted_coverage_filtered.bed -b ${FOLDERO}/multiple_4cov.bed ${FOLDERO}/uniq_4cov.bed | sort --parallel ${NUMPROC} -V -k 6,6 -k 7,7 > ${FOLDERO}/regions_filtered_sorted.bed
+rm ${FOLDERO}/uniq_4cov.bed ${FOLDERO}/multiple_4cov.bed
 
 ##########
 # Recrea el archivo para formar la red
 ########
 bedtools intersect -c -sorted -g ${GEN4BT} -a ${FOLDERO}/regions_sorted_coverage_filtered.bed -b ${FOLDERO}/uniq.BAM > ${FOLDERO}/all_uniq_count.bed
 
-bedtools intersect -g ${GEN4BT} -sorted -a ${FOLDERO}/regions_sorted_coverage_filtered.bed -b ${FOLDERO}/multiple.BAM -wo >${FOLDERO}/multiple_intersect_reads.bed
-sort --parallel ${NUMPROC} -V -u -k 1,3 -k 8,8 ${FOLDERO}/multiple_intersect_reads.bed > ${FOLDERO}/multiple_intersect_reads_4cov.bed
+bedtools intersect -g ${GEN4BT} -sorted -a ${FOLDERO}/regions_sorted_coverage_filtered.bed -b ${FOLDERO}/multiple.BAM -wo |sort --parallel ${NUMPROC} -V -u -k 1,3 -k 8,8 > ${FOLDERO}/multiple_intersect_reads_4cov.bed
 
 perl -e '{open(IN,"$ARGV[0]");while(<IN>){@vec=split("\t",$_);$name=$vec[0]."_".$vec[1]."_".$vec[2]; push(@{$h{$vec[7]}}, $name);}close (IN);
  foreach $k (sort keys %h){for ($cont=0;$h{$k}[$cont];$cont++){for($cont2=$cont+1;$h{$k}[$cont2];$cont2++){$out= $h{$k}[$cont]."\t".$h{$k}[$cont2];$done{$out}++;}}} undef %h;

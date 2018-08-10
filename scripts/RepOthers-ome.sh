@@ -174,7 +174,7 @@ then
  samtools view -@ ${numpro} -b ${out_rand} > ${out_rand}.BAM 
  #samtools sort -@ ${numpro} ${out_rand}.BAM -o ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  #samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4_sorted.BAM ${folder2}/DONE_uniq_k100_sorted.BAM ${folder3}/DONE_uniq_k500_sorted.BAM ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
- samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4.BAM ${folder2}/DONE_uniq_k100.BAM ${folder3}/DONE_uniq_k500.BAM ${out_rand}.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools cat -o ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4.BAM ${folder2}/DONE_uniq_k100.BAM ${folder3}/DONE_uniq_k500.BAM ${out_rand}.BAM &>> ${folder_gral}/RepOthers-ome.log
  samtools sort -@ {numpro} ${out_rand}_all_rand.BAM -o ${out_rand}_all_rand_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  rm ${out_rand}_all_rand.BAM ${out_rand}.BAM ${out_rand}
  samtools index ${out_rand}_all_rand_sorted.BAM
@@ -212,7 +212,7 @@ then
  perl -e '{open(IN,"$ARGV[0]"); while($l=<IN>){ chomp $l; @vec=split("\t",$l); $temp=join("_",@vec);$h{$temp}=1; }close(IN);
   open(FIL,"$ARGV[1]"); while($l=<FIL>){chomp $l; @vec=split("\t",$l); pop @vec; $temp=join("_",@vec); if(!$h{$temp}){print "$l\n";}}}' ${folder_gral}/transcripts_solved_telescope.bed ${folder5}/regions_sorted_coverage_filtered.bed > ${folder_gral}/transcripts_unique.bed
  samtools view -b -L ${folder_gral}/transcripts_unique.bed ${folder5}/ALL.BAM >${folder_gral}/unique.bam 
- bedtools coverage -mean -a ${folder_gral}/transcripts_solved_telescope.bed -b ${folder6}/result_sorted.bam > ${folder_gral}/transcripts_NOTunique.bed 
+ bedtools coverage -sorted -mean -a ${folder_gral}/transcripts_solved_telescope.bed -b ${folder6}/result_sorted.bam > ${folder_gral}/transcripts_NOTunique.bed 
  awk -v CUT="$cutoff" '{if (!($4 <= CUT)){ print $0;}}' ${folder_gral}/transcripts_NOTunique.bed > ${folder_gral}/transcripts_NOTunique_filtered.bed
  cat ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed | sort -V -k1,1 -k2,2n > ${folder_gral}/RepOthers.bed
  rm ${folder_gral}/transcripts_NOTunique.bed ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed ${folder_gral}/transcripts_solved_telescope.bed
