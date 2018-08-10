@@ -91,7 +91,12 @@ perl -e '{ open (REC, "$ARGV[0]"); while ($l=<REC>){ chomp $l; @vec=split("\t",$
   if($un{$vec[0]}){print UNQ $_;}else{print $_;}
  }}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/unique.SAM > ${FOLDER}/multiple.SAM
 
-#cat ${FOLDER}/header.txt ${FOLDER}/uniq.SAM ${FOLDER}/uniq2.SAM > ${FOLDER}/unique.SAM
+
+perl -e '{ open(IN,"$ARGV[0]");while(<IN>){if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2; @vec=split("\t",$_);for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o;}}else{print $_;}}}' ${FOLDER}/unique.SAM > ${FOLDER}/unique_temp.SAM &
+perl -e '{ open(IN,"$ARGV[0]");while(<IN>){if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2; @vec=split("\t",$_);for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o;}}else{print $_;}}}' ${FOLDER}/multiple.SAM > ${FOLDER}/multiple_temp.SAM &
+wait
+mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM
+mv ${FOLDER}/multiple_temp.SAM ${FOLDER}/multiple.SAM
 
 echo "Unique mapped reads:" >> ${SUMMARY_T}
 echo $(wc -l ${FOLDER}/unique.SAM| cut -f 1 -d " ") >> ${SUMMARY_T}
@@ -102,7 +107,7 @@ echo $(wc -l ${FOLDER}/4knext.SAM|cut -f 1 -d " ") >> ${SUMMARY_T}
 
 samtools view -@ ${NUMPR} -b ${FOLDER}/4knext.SAM -t ${FOLDER}/header_mod.txt > ${FOLDER}/4knext.BAM
 samtools fastq -n ${FOLDER}/4knext.BAM > ${FOLDER}/4knext.fastq 2>/dev/null
-rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/multreads_done.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/best_alscor.txt
+rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt
 
 sed -e '/^\s*$/d' ${FOLDER}/unique.SAM > ${FOLDER}/uniq2.SAM
 mv ${FOLDER}/uniq2.SAM ${FOLDER}/unique.SAM

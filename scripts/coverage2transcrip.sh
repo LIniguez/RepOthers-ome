@@ -31,10 +31,10 @@ mv ${FOLDERO}/multiple2.BAM ${FOLDERO}/multiple.BAM
 ##########
 # Ve la zonas que tienen covertura para los bam de unicos y no unicos
 ########
-bedtools genomecov -bg -ibam ${FOLDERO}/uniq.BAM -g ${GEN4BT} > ${FOLDERO}/uniq_cov.bed
+bedtools genomecov -bg -ibam ${FOLDERO}/uniq.BAM > ${FOLDERO}/uniq_cov.bed
 bedtools merge -d ${MINNCOV} -i ${FOLDERO}/uniq_cov.bed > ${FOLDERO}/uniq_cov_merged.bed
 
-bedtools genomecov -bg -ibam ${FOLDERO}/multiple.BAM -g ${GEN4BT} > ${FOLDERO}/multiple_cov.bed
+bedtools genomecov -bg -ibam ${FOLDERO}/multiple.BAM > ${FOLDERO}/multiple_cov.bed
 bedtools merge -d ${MINNCOV} -i ${FOLDERO}/multiple_cov.bed > ${FOLDERO}/multiple_cov_merged.bed 
 ##########
 # Junta las regiones de unicos y no unicos

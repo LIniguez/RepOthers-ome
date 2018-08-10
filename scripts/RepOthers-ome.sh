@@ -58,19 +58,20 @@ done
 
 if [ -z "$bow_index" ] || [ -z "$rtRNA_MChr" ] || [ -z "$exons" ] || [ -z "$hi_index" ] 
 then
- echo "Mensaje de error 2" && exit 1
+ echo "Not all annotations/DB needed" && exit 1
 fi
 
 if [ -z "$fastq1" ] || [ -z "$fastq2" ]
 then
  if [ -z "$fastq" ]
  then
-  echo "Mensaje de error 3" && exit 1
+  echo "Missing fastq file(s)" && exit 1
  else
   paired=FALSE	
  fi
 else
  paired=TRUE
+ fastq=${folder_gral}/test_joined.fastq
 fi
 
 
@@ -98,7 +99,7 @@ check_mult(){
    foreach $read(keys %h){
    if( $h{$read} < $MAX ){ print OUT "$read\n";}}}}' -s -- -OUT=${FOLD}/multreads_done.txt -MAX=${MAX}
 }
-unali=${folder_gral}/unalign_temp.bz2
+unali=${folder_gral}/unalign_temp.gz
 unali2=${folder_gral}/unalign.bz2
 folder1=${folder_gral}/mapping_4
 folder2=${folder_gral}/mapping_100
@@ -115,19 +116,21 @@ then
  mkdir -p ${folder_gral}/
  if [ $paired == "TRUE" ];
  then
-  fastq=${folder_gral}/test_joined.fastq
   perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq1} 1 >${fastq}
   perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq2} 2 >>${fastq}
  fi
- awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n -u >${folder_gral}/exons_anotation.bed
+ awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}/exons_anotation.bed
  >${folder_gral}/summary.txt
  >${folder_gral}/RepOthers-ome.log
  mkdir -p ${folder1}/
  echo "Mapping"
  echo " Bowtie2 -k4"
  #First Bowtie2 with a small number of possible alignments
- bowtie2 --un-bz2 ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 --very-sensitive-local -x ${bow_index} -U ${fastq} 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder1} | check_mult ${folder1} 4 > ${folder1}/multiple.SAM
+ bowtie2 --seed 22062018 --un-gz ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 --very-sensitive-local -x ${bow_index} -U ${fastq} 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder1} | check_mult ${folder1} 4 > ${folder1}/multiple.SAM
  filter_SAM.sh ${numpro} ${folder1} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 4 &>> ${folder_gral}/RepOthers-ome.log
+ fastx_collapser -i ${folder1}/4knext.fastq -o ${folder1}/4knext.fasta
+ rm ${folder1}/4knext.fastq
+
 fi
 
 
@@ -136,7 +139,7 @@ then
  mkdir -p ${folder2}/
  echo " Bowtie2 -k100"
  #Second round
- bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 100 --very-sensitive-local -x ${bow_index} -U ${folder1}/4knext.fastq 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder2} | check_mult ${folder2} 100 > ${folder2}/multiple.SAM 
+ bowtie2 --seed 22062018 --no-unal --score-min L,0,1.6 -f -p ${numpro} -k 100 --very-sensitive-local -x ${bow_index} -U ${folder1}/4knext.fasta 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder2} | check_mult ${folder2} 100 > ${folder2}/multiple.SAM 
  filter_SAM.sh ${numpro} ${folder2} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 100 &>> ${folder_gral}/RepOthers-ome.log
 fi
 
@@ -145,7 +148,7 @@ then
  mkdir -p ${folder3}/
  echo " Bowtie2 -k500"
  #Third round
- bowtie2 --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 --very-sensitive-local -x ${bow_index} -U ${folder2}/4knext.fastq 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder3} | check_mult ${folder3} 500 > ${folder3}/multiple.SAM 
+ bowtie2 --seed 22062018  --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 --very-sensitive-local -x ${bow_index} -U ${folder2}/4knext.fastq 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder3} | check_mult ${folder3} 500 > ${folder3}/multiple.SAM 
  filter_SAM.sh ${numpro} ${folder3} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
 fi
 
@@ -154,7 +157,7 @@ then
  mkdir -p ${folder4}/
  echo " hisat2"
  #hisat2
- hisat2 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}/novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}/multiple.SAM 
+ hisat2 --seed 22062018 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}/novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}/RepOthers-ome.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}/multiple.SAM 
  echo -e "\nSpliced Reads:\n" >> ${folder_gral}/summary.txt
  filter_SAM.sh ${numpro} ${folder4} ${folder_gral}/summary.txt ${folder_gral}/exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}/RepOthers-ome.log
  sort -V -k1,1 -k2,2n ${folder_gral}/novel.spli.bed > ${folder_gral}/splicesites_sorted.bed
@@ -167,18 +170,23 @@ if [ $startin == "4" ] || [ $startin == "100" ] || [ $startin == "500" ] || [ $s
 then
  echo "Mapping Random"
  cat ${folder1}/multiple4random.fastq ${folder2}/multiple4random.fastq ${folder3}/multiple4random.fastq > ${randfastq}
- bowtie2 -p ${numpro} -S ${out_rand} --very-sensitive-local --score-min L,0,1.6 --very-sensitive-local -x ${bow_index} -U ${randfastq} &>> ${folder_gral}/RepOthers-ome.log
+ bowtie2 --seed 22062018 -p ${numpro} -S ${out_rand} --very-sensitive-local --score-min L,0,1.6 --very-sensitive-local -x ${bow_index} -U ${randfastq} &>> ${folder_gral}/RepOthers-ome.log
  samtools view -@ ${numpro} -b ${out_rand} > ${out_rand}.BAM 
  samtools sort -@ ${numpro} ${out_rand}.BAM -o ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  rm ${out_rand}.BAM ${out_rand}
  samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4_sorted.BAM ${folder2}/DONE_uniq_k100_sorted.BAM ${folder3}/DONE_uniq_k500_sorted.BAM ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  samtools index ${out_rand}_all_rand.BAM
- samtools view -@ ${numpro} ${out_rand}_all_rand.BAM |cut -f 10 > ${folder_gral}/seq4leng.txt 
- readleng=$(perl -e '{open(SEQ,"$ARGV[0]");$tot=0;$num=0;while($l=<SEQ>){chomp $l;$tot+=length($l);$num++;} $avr=$tot/$num; $avr=int($avr+0.5); print $avr;}' ${folder_gral}/seq4leng.txt)
- mincov=$(perl -e '{open(SEQ,"$ARGV[0]");$flag=0;while($l=<SEQ>){chomp $l; if($flag==0){$flag=1;$min=length($l);}if(length($l)<$min){$min=length($l);}} print $min;}' ${folder_gral}/seq4leng.txt)
+ # samtools view -@ ${numpro} ${out_rand}_all_rand.BAM |cut -f 10 > ${folder_gral}/seq4leng.txt 
+ # readleng=$(perl -e '{open(SEQ,"$ARGV[0]");$tot=0;$num=0;while($l=<SEQ>){chomp $l;$tot+=length($l);$num++;} $avr=$tot/$num; $avr=int($avr+0.5); print $avr;}' ${folder_gral}/seq4leng.txt)
+ # mincov=$(perl -e '{open(SEQ,"$ARGV[0]");$flag=0;while($l=<SEQ>){chomp $l; if($flag==0){$flag=1;$min=length($l);}if(length($l)<$min){$min=length($l);}} print $min;}' ${folder_gral}/seq4leng.txt)
+ readleng=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^SN\taverage length"| awk '{print $4}')
+ mincov=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^RL" | sort -V -k2,2n |head -n1|cut -f 2)
+ numseq=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^SN\tsequences"| cut -f 3)
  FindCoverCutoff.R ${out_rand}_all_rand.BAM ${readleng} 0.01 &>> ${folder_gral}/RepOthers-ome.log
  cutoff=$(head -n 2 ${out_rand}_CoverageCutoff.txt | tail -n 1| cut -f 2) #output de FindCoverCutoff.R
- rm ${folder_gral}/seq4leng.txt ${randfastq} ${out_rand}*BAM* ${out_rand}_CoverageCutoff.txt
+ rm ${randfastq} ${out_rand}*BAM* ${out_rand}_CoverageCutoff.txt
+ echo "Number of Sequences for RepOthers-ome:" >>${folder_gral}/summary.txt
+ echo $numseq >>${folder_gral}/summary.txt
  echo "Average read length:" >>${folder_gral}/summary.txt
  echo $readleng >>${folder_gral}/summary.txt
  echo "Min read length:" >>${folder_gral}/summary.txt
@@ -194,7 +202,7 @@ then
  echo "Done"
 
  echo "Telescope"
- network_analysis.sh 1500 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
+ network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
  rm ${folder_gral}/gen4bedt.txt ${folder_gral}/gen4samt.txt
  echo "Done"
  echo "Final Count"
@@ -209,6 +217,9 @@ then
 
  samtools merge -f ${folder_gral}/final.bam ${folder6}/result_sorted.bam ${folder_gral}/unique.bam &>> ${folder_gral}/RepOthers-ome.log
  samtools sort -@ ${numpro} ${folder_gral}/final.bam -o ${folder_gral}/RepOthers.bam &>> ${folder_gral}/RepOthers-ome.log
+ numseq=$(samtools stats -@ ${numpro} ${folder_gral}/RepOthers.bam | grep -P "^SN\tsequences"| cut -f 3)
+ echo "Number of Sequences mapped to RepOthers:" >>${folder_gral}/summary.txt
+ echo $numseq >>${folder_gral}/summary.txt
  rm ${folder_gral}/final.bam ${folder_gral}/unique.bam
 
  awk '{a=$1"_"$2"_"$3; b="gene_id \""a"\"; transcript_id \""a"\"; locus \""a"\";"; print $1,"repeatsome","transcript",$2,$3,".",".",".",b;}' OFS="\t" ${folder_gral}/RepOthers.bed > ${folder_gral}/RepOthers.gtf 
@@ -249,14 +260,14 @@ echo "###################   Thanks for using RepOthers-ome   ###################
 
 
 #Hay que ponerle seguros por si no tiene instalados diversos paquetes de R o programas tipo bowtie o asi
-#bedtools.v.2.25
-#transcriptR
-#samtools
-#bowtie2
-#R
-#igraph
-#Rsubread
-#hisat2
+#bedtools.v.2.25 X
+#transcriptR X
+#samtools X
+#bowtie2 X
+#R X
+#igraph X
+#Rsubread X
+#hisat2 X
 #parallel
 
 #@article{Tange2011a,
