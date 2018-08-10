@@ -172,19 +172,21 @@ then
  cat ${folder1}/multiple4random.fastq ${folder2}/multiple4random.fastq ${folder3}/multiple4random.fastq > ${randfastq}
  bowtie2 --seed 22062018 -p ${numpro} -S ${out_rand} --very-sensitive-local --score-min L,0,1.6 --very-sensitive-local -x ${bow_index} -U ${randfastq} &>> ${folder_gral}/RepOthers-ome.log
  samtools view -@ ${numpro} -b ${out_rand} > ${out_rand}.BAM 
- samtools sort -@ ${numpro} ${out_rand}.BAM -o ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
- rm ${out_rand}.BAM ${out_rand}
- samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4_sorted.BAM ${folder2}/DONE_uniq_k100_sorted.BAM ${folder3}/DONE_uniq_k500_sorted.BAM ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
- samtools index ${out_rand}_all_rand.BAM
+ #samtools sort -@ ${numpro} ${out_rand}.BAM -o ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ #samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4_sorted.BAM ${folder2}/DONE_uniq_k100_sorted.BAM ${folder3}/DONE_uniq_k500_sorted.BAM ${out_rand}_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools merge -f ${out_rand}_all_rand.BAM ${folder1}/DONE_uniq_k4.BAM ${folder2}/DONE_uniq_k100.BAM ${folder3}/DONE_uniq_k500.BAM ${out_rand}.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools sort -@ {numpro} ${out_rand}_all_rand.BAM -o ${out_rand}_all_rand_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ rm ${out_rand}_all_rand.BAM ${out_rand}.BAM ${out_rand}
+ samtools index ${out_rand}_all_rand_sorted.BAM
  # samtools view -@ ${numpro} ${out_rand}_all_rand.BAM |cut -f 10 > ${folder_gral}/seq4leng.txt 
  # readleng=$(perl -e '{open(SEQ,"$ARGV[0]");$tot=0;$num=0;while($l=<SEQ>){chomp $l;$tot+=length($l);$num++;} $avr=$tot/$num; $avr=int($avr+0.5); print $avr;}' ${folder_gral}/seq4leng.txt)
  # mincov=$(perl -e '{open(SEQ,"$ARGV[0]");$flag=0;while($l=<SEQ>){chomp $l; if($flag==0){$flag=1;$min=length($l);}if(length($l)<$min){$min=length($l);}} print $min;}' ${folder_gral}/seq4leng.txt)
- readleng=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^SN\taverage length"| awk '{print $4}')
- mincov=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^RL" | sort -V -k2,2n |head -n1|cut -f 2)
- numseq=$(samtools stats -@ ${numpro} ${out_rand}_all_rand.BAM | grep -P "^SN\tsequences"| cut -f 3)
- FindCoverCutoff.R ${out_rand}_all_rand.BAM ${readleng} 0.01 &>> ${folder_gral}/RepOthers-ome.log
- cutoff=$(head -n 2 ${out_rand}_CoverageCutoff.txt | tail -n 1| cut -f 2) #output de FindCoverCutoff.R
- rm ${randfastq} ${out_rand}*BAM* ${out_rand}_CoverageCutoff.txt
+ readleng=$(samtools stats -@ ${numpro} ${out_rand}_all_rand_sorted.BAM | grep -P "^SN\taverage length"| awk '{print $4}')
+ mincov=$(samtools stats -@ ${numpro} ${out_rand}_all_rand_sorted.BAM | grep -P "^RL" | sort -V -k2,2n |head -n1|cut -f 2)
+ numseq=$(samtools stats -@ ${numpro} ${out_rand}_all_rand_sorted.BAM | grep -P "^SN\tsequences"| cut -f 3)
+ FindCoverCutoff.R ${out_rand}_all_rand_sorted.BAM ${readleng} 0.01 &>> ${folder_gral}/RepOthers-ome.log
+ cutoff=$(head -n 2 ${out_rand}_all_CoverageCutoff.txt | tail -n 1| cut -f 2) #output de FindCoverCutoff.R
+ rm ${randfastq} ${out_rand}*BAM* ${out_rand}_all_CoverageCutoff.txt
  echo "Number of Sequences for RepOthers-ome:" >>${folder_gral}/summary.txt
  echo $numseq >>${folder_gral}/summary.txt
  echo "Average read length:" >>${folder_gral}/summary.txt
