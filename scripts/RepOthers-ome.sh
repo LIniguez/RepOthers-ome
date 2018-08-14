@@ -208,7 +208,7 @@ then
  rm ${folder_gral}/gen4bedt.txt ${folder_gral}/gen4samt.txt
  echo "Done"
  echo "Final Count"
- awk '{if($5==1)print $1,$2,$3;}' OFS="\t" ${folder5}/regions_filtered_sorted.bed | sort -u > ${folder_gral}/transcripts_solved_telescope.bed
+ awk '{if($5==1)print $1,$2,$3;}' OFS="\t" ${folder5}/regions_filtered_sorted.bed | sort -V -k1,1 -k2,2n | uniq > ${folder_gral}/transcripts_solved_telescope.bed
  perl -e '{open(IN,"$ARGV[0]"); while($l=<IN>){ chomp $l; @vec=split("\t",$l); $temp=join("_",@vec);$h{$temp}=1; }close(IN);
   open(FIL,"$ARGV[1]"); while($l=<FIL>){chomp $l; @vec=split("\t",$l); pop @vec; $temp=join("_",@vec); if(!$h{$temp}){print "$l\n";}}}' ${folder_gral}/transcripts_solved_telescope.bed ${folder5}/regions_sorted_coverage_filtered.bed > ${folder_gral}/transcripts_unique.bed
  samtools view -b -L ${folder_gral}/transcripts_unique.bed ${folder5}/ALL.BAM >${folder_gral}/unique.bam 
@@ -226,13 +226,13 @@ then
 
  awk '{a=$1"_"$2"_"$3; b="gene_id \""a"\"; transcript_id \""a"\"; locus \""a"\";"; print $1,"repeatsome","transcript",$2,$3,".",".",".",b;}' OFS="\t" ${folder_gral}/RepOthers.bed > ${folder_gral}/RepOthers.gtf 
  count_transcripts.R ${folder_gral}/RepOthers.bam ${folder_gral}/RepOthers.gtf transcript gene_id ${folder_gral}/RepOthers_nosplicing FALSE &>> ${folder_gral}/RepOthers-ome.log
- samtools cat -o ${folder_gral}/RepOthers_splicing_temp.bam ${folder4}/DONE_uniq_k500_sorted.BAM ${folder4}/DONE_multiple_k500_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools cat -o ${folder_gral}/RepOthers_splicing_temp.bam ${folder4}/DONE_uniq_k500.BAM ${folder4}/DONE_multiple_k500.BAM &>> ${folder_gral}/RepOthers-ome.log
  samtools sort -@ ${numpro} ${folder_gral}/RepOthers_splicing_temp.bam -o ${folder_gral}/RepOthers_splicing.bam &>> ${folder_gral}/RepOthers-ome.log
  rm ${folder_gral}/RepOthers_splicing_temp.bam
  count_transcripts.R ${folder_gral}/RepOthers_splicing.bam ${folder_gral}/RepOthers.gtf transcript gene_id ${folder_gral}/RepOthers_splicing TRUE &>> ${folder_gral}/RepOthers-ome.log
 
 
- samtools cat -o ${folder_gral}/Exons_temp.bam ${folder1}/exons_sorted.BAM ${folder2}/exons_sorted.BAM ${folder3}/exons_sorted.BAM ${folder4}/exons_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools merge -f ${folder_gral}/Exons_temp.bam ${folder1}/exons_sorted.BAM ${folder2}/exons_sorted.BAM ${folder3}/exons_sorted.BAM ${folder4}/exons_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  samtools sort -@ ${numpro} ${folder_gral}/Exons_temp.bam -o ${folder_gral}/Exons.bam &>> ${folder_gral}/RepOthers-ome.log
  count_transcripts.R ${folder_gral}/Exons.bam ${exons} exon gene_id ${folder_gral}/Gene FALSE &>> ${folder_gral}/RepOthers-ome.log
  count_transcripts.R ${folder_gral}/Exons.bam ${exons} exon transcript_id ${folder_gral}/Transcript FALSE &>> ${folder_gral}/RepOthers-ome.log
