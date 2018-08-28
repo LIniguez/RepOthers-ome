@@ -285,4 +285,4 @@ echo "###################   Thanks for using RepOthers-ome   ###################
 # pages = {42-47}
 #}
 
-
+#Annotations and Chromosome coordenates should be chrXXYY not only XXYY, this is for bowtie indexes as well as gtf/bed files used. 
