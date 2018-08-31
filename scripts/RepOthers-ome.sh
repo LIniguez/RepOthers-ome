@@ -256,6 +256,10 @@ echo "###################   Thanks for using RepOthers-ome   ###################
 #falta:
 #seguros para todos los programas y asi para que pueda ser modular la esto.
 #ponerle mÃ¡s y mejor al summary
+#Con muchas lecturas el summary se hace lento, se tiene que eficientar los conteos con algo similar a samtools stat, en algún lugar del código se encuentra un ejemplo. Se tarda mucho con el sistema. 
+
+
+
 
 #Hay que hacer algo con los transcritos? Separar cuales se solucionaron con telescope o no? (info en folder5)
 	
