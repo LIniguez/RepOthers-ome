@@ -14,7 +14,6 @@ GEN4BDT=$7
 BED=${FOLDER}/regions_sorted_coverage_filtered.bed
 
 
-mkdir -p ${FOLDERO}
 
 samtools view -h -@ ${NUMPRO} ${FOLDER}/ALL.BAM > ${FOLDERO}/${i}.SAM
 samtools view -H ${FOLDERO}/${i}.SAM >${FOLDERO}/header.txt

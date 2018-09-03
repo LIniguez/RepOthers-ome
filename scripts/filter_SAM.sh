@@ -30,7 +30,7 @@ perl -e '{ open(RD, "$ARGV[0]"); while($l=<RD>){chomp $l; $h{$l}=1;} close(RD); 
   open(BS, "$ARGV[1]"); while ($l=<BS>){ chomp $l; @vec=split("\t",$l);$bs{$vec[0]}=$vec[1];} close(BS);
   open(MS, "$ARGV[2]");
   open(MSD, ">$ARGV[3]");
-  open(REC, ">$ARGV[4]");
+  open(REC, ">$ARGV[4]");$num=0;
   while(<MS>){		#reads SAM from multiple mapped reads
    @vec=split("\t",$_);
    if($h{$vec[0]}){	#Checks if the read is already done for mapping (it needs to have < maximum )
@@ -42,7 +42,7 @@ perl -e '{ open(RD, "$ARGV[0]"); while($l=<RD>){chomp $l; $h{$l}=1;} close(RD); 
   }' ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt ${FOLDER}/multiple.SAM ${FOLDER}/multiple_temp.SAM ${FOLDER}/readcount.txt ${FOLDER}/mult_readcount.txt >  ${FOLDER}/4knext.SAM
 
 perl -e '{ open (REC, "$ARGV[0]"); while ($l=<REC>){ chomp $l; @vec=split("\t",$l); if($vec[1]==1){$un{$vec[0]}=1;}} #A multiple mapped read can change to be uniquely mapped
- open(MS, "$ARGV[1]"); open(UNQ, ">>$ARGV[2]"); 
+ open(MS, "$ARGV[1]"); open(UNQ, ">>$ARGV[2]"); $num=0;
  while (<MS>){
   @vec=split("\t",$_);
   if($un{$vec[0]}){print UNQ $_;}
@@ -54,7 +54,7 @@ perl -e '{ open (REC, "$ARGV[0]"); while ($l=<REC>){ chomp $l; @vec=split("\t",$
  open(OU, ">>$ARGV[3]"); print OU "$num\n";}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/multiple.SAM
 
 
-perl -e '{ open(IN,"$ARGV[0]");while(<IN>){@vec=split("\t",$_);
+perl -e '{ open(IN,"$ARGV[0]");$num=0;while(<IN>){@vec=split("\t",$_);
   if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2;
    for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;}}
   }else{print $_; if(!$exists{$vec[0]} && !($vec[0] =~ /^@/)){$exists{$vec[0]}=1;$num++;} }}open(OU, ">>$ARGV[1]"); print OU "$num\n";}' ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/unique_temp.SAM 

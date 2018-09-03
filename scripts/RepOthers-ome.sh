@@ -87,7 +87,7 @@ check_sam(){
   if($13~/XS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
    split($12,a,":");
    print $0 ; print $1,a[3] >> FOLD"/best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
-  if($13~/ZS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
+  }if($13~/ZS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
    split($12,a,":");
    print $0 ; print $1,a[3] >> FOLD"/best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
   }else{print $0 >> FOLD"/unique.SAM";}
@@ -207,7 +207,11 @@ then
  echo "Done"
 
  echo "Telescope"
- network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
+ mkdir -p ${folder6}
+ if [ $(wc -c ${folder5}/vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
+ then
+  network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
+ fi
  rm ${folder_gral}/gen4bedt.txt ${folder_gral}/gen4samt.txt
  echo "Done"
  echo "Final Count"
@@ -215,17 +219,28 @@ then
  perl -e '{open(IN,"$ARGV[0]"); while($l=<IN>){ chomp $l; @vec=split("\t",$l); $temp=join("_",@vec);$h{$temp}=1; }close(IN);
   open(FIL,"$ARGV[1]"); while($l=<FIL>){chomp $l; @vec=split("\t",$l); pop @vec; $temp=join("_",@vec); if(!$h{$temp}){print "$l\n";}}}' ${folder_gral}/transcripts_solved_telescope.bed ${folder5}/regions_sorted_coverage_filtered.bed > ${folder_gral}/transcripts_unique.bed
  samtools view -b -L ${folder_gral}/transcripts_unique.bed ${folder5}/ALL.BAM >${folder_gral}/unique.bam 
- bedtools coverage -sorted -mean -a ${folder_gral}/transcripts_solved_telescope.bed -b ${folder6}/result_sorted.bam > ${folder_gral}/transcripts_NOTunique.bed 
- awk -v CUT="$cutoff" '{if (!($4 <= CUT)){ print $0;}}' ${folder_gral}/transcripts_NOTunique.bed > ${folder_gral}/transcripts_NOTunique_filtered.bed
- cat ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed | sort -V -k1,1 -k2,2n > ${folder_gral}/RepOthers.bed
- rm ${folder_gral}/transcripts_NOTunique.bed ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed ${folder_gral}/transcripts_solved_telescope.bed
-
- samtools cat -o ${folder_gral}/final.bam ${folder6}/result_sorted.bam ${folder_gral}/unique.bam &>> ${folder_gral}/RepOthers-ome.log
+ if [ $(wc -c ${folder5}/vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
+ then
+  bedtools coverage -sorted -mean -a ${folder_gral}/transcripts_solved_telescope.bed -b ${folder6}/result_sorted.bam > ${folder_gral}/transcripts_NOTunique.bed 
+  awk -v CUT="$cutoff" '{if (!($4 <= CUT)){ print $0;}}' ${folder_gral}/transcripts_NOTunique.bed > ${folder_gral}/transcripts_NOTunique_filtered.bed
+  cat ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed | sort -V -k1,1 -k2,2n > ${folder_gral}/RepOthers.bed
+  rm ${folder_gral}/transcripts_NOTunique.bed ${folder_gral}/transcripts_NOTunique_filtered.bed ${folder_gral}/transcripts_unique.bed ${folder_gral}/transcripts_solved_telescope.bed
+ else 
+  sort -V -k1,1 -k2,2n  ${folder_gral}/transcripts_unique.bed > ${folder_gral}/RepOthers.bed
+  rm ${folder_gral}/transcripts_unique.bed
+ fi
+ if [ $(wc -c ${folder5}/vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
+ then
+  samtools cat -o ${folder_gral}/final.bam ${folder6}/result_sorted.bam ${folder_gral}/unique.bam &>> ${folder_gral}/RepOthers-ome.log
+  rm ${folder_gral}/unique.bam
+ else
+  mv ${folder_gral}/unique.bam ${folder_gral}/final.bam &>> ${folder_gral}/RepOthers-ome.log
+ fi
  samtools sort -@ ${numpro} ${folder_gral}/final.bam -o ${folder_gral}/RepOthers.bam &>> ${folder_gral}/RepOthers-ome.log
  numseq=$(samtools stats -@ ${numpro} ${folder_gral}/RepOthers.bam | grep -P "^SN\tsequences"| cut -f 3)
  echo "Number of Sequences mapped to RepOthers:" >>${folder_gral}/summary.txt
  echo $numseq >>${folder_gral}/summary.txt
- rm ${folder_gral}/final.bam ${folder_gral}/unique.bam
+ rm ${folder_gral}/final.bam 
 
  awk '{a=$1"_"$2"_"$3; b="gene_id \""a"\"; transcript_id \""a"\"; locus \""a"\";"; print $1,"repeatsome","transcript",$2,$3,".",".",".",b;}' OFS="\t" ${folder_gral}/RepOthers.bed > ${folder_gral}/RepOthers.gtf 
  count_transcripts.R ${folder_gral}/RepOthers.bam ${folder_gral}/RepOthers.gtf transcript gene_id ${folder_gral}/RepOthers_nosplicing FALSE &>> ${folder_gral}/RepOthers-ome.log
