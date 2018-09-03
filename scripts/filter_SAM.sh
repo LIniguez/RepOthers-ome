@@ -20,6 +20,8 @@ MAXALL=$6
 
 
 grep -P '@SQ' ${FOLDER}/header.txt| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDER}/header_mod.txt
+
+
 rm ${FOLDER}/header.txt
 
 
@@ -27,41 +29,50 @@ rm ${FOLDER}/header.txt
 perl -e '{ open(RD, "$ARGV[0]"); while($l=<RD>){chomp $l; $h{$l}=1;} close(RD); #reads with less number of mappings than maximum
   open(BS, "$ARGV[1]"); while ($l=<BS>){ chomp $l; @vec=split("\t",$l);$bs{$vec[0]}=$vec[1];} close(BS);
   open(MS, "$ARGV[2]");
-  open(MSD, ">$ARGV[3]"); open(REC, ">$ARGV[4]");
+  open(MSD, ">$ARGV[3]");
+  open(REC, ">$ARGV[4]");
   while(<MS>){		#reads SAM from multiple mapped reads
    @vec=split("\t",$_);
    if($h{$vec[0]}){	#Checks if the read is already done for mapping (it needs to have < maximum )
     @vec2=split("\:",$vec[11]);	
     if(($bs{$vec[0]}-$vec2[2])<=8){$readc{$vec[0]}++; print MSD $_;}  #checks the differences between the best alignment and the second best (only one missmatch is allowed)
    }
-   elsif(($vec[1]-256)<0){ print $_;}	#if read has >= possible mappings it goes to a next round of mapping. 
-  }foreach $k (keys %readc){print REC "$k\t$readc{$k}\n";} #print valid number of mappings for each read. 
-  }' ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt ${FOLDER}/multiple.SAM ${FOLDER}/multiple_temp.SAM ${FOLDER}/readcount.txt >  ${FOLDER}/4knext.SAM
+   elsif(($vec[1]-256)<0){ print $_;$num++;}	#if read has >= possible mappings it goes to a next round of mapping. 
+  }foreach $k (keys %readc){print REC "$k\t$readc{$k}\n"; } open (OU, ">$ARGV[5]");print OU "$num\n"; #print valid number of mappings for each read. 
+  }' ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt ${FOLDER}/multiple.SAM ${FOLDER}/multiple_temp.SAM ${FOLDER}/readcount.txt ${FOLDER}/mult_readcount.txt >  ${FOLDER}/4knext.SAM
 
 perl -e '{ open (REC, "$ARGV[0]"); while ($l=<REC>){ chomp $l; @vec=split("\t",$l); if($vec[1]==1){$un{$vec[0]}=1;}} #A multiple mapped read can change to be uniquely mapped
  open(MS, "$ARGV[1]"); open(UNQ, ">>$ARGV[2]"); 
  while (<MS>){
   @vec=split("\t",$_);
   if($un{$vec[0]}){print UNQ $_;}
-  else{if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2; @vec=split("\t",$_);for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o;}}else{print $_;}} #changes for reads collapsed into a single read (after -k 4)
- }}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/unique.SAM > ${FOLDER}/multiple.SAM
+  else{
+   if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2; @vec=split("\t",$_);
+    for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;}}
+   }else{print $_; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;} }} #changes for reads collapsed into a single read (after -k 4)
+ }
+ open(OU, ">>$ARGV[3]"); print OU "$num\n";}' ${FOLDER}/readcount.txt ${FOLDER}/multiple_temp.SAM ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/multiple.SAM
 
 
-perl -e '{ open(IN,"$ARGV[0]");while(<IN>){if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2; @vec=split("\t",$_);for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o;}}else{print $_;}}}' ${FOLDER}/unique.SAM > ${FOLDER}/unique_temp.SAM 
+perl -e '{ open(IN,"$ARGV[0]");while(<IN>){@vec=split("\t",$_);
+  if($_=~/^(\d+)-(\d+)\t/){$name=$1;$times=$2;
+   for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;}}
+  }else{print $_; if(!$exists{$vec[0]} && !($vec[0] =~ /^@/)){$exists{$vec[0]}=1;$num++;} }}open(OU, ">>$ARGV[1]"); print OU "$num\n";}' ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/unique_temp.SAM 
 
 mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM
 
 
 echo "Unique mapped reads:" >> ${SUMMARY_T}
-echo $(wc -l ${FOLDER}/unique.SAM| cut -f 1 -d " ") >> ${SUMMARY_T}
+tail -n 1 ${FOLDER}/mult_readcount.txt >> ${SUMMARY_T}
 echo "Multiple mapped reads: " >> ${SUMMARY_T}
-echo $(cut -f 1 ${FOLDER}/multiple.SAM | sort --parallel ${NUMPR} -u | wc -l) >> ${SUMMARY_T}
+head -n 2 ${FOLDER}/mult_readcount.txt | tail -n 1 >> ${SUMMARY_T}
 echo "Reads with max mapping (k=" $MAXALL "):">> ${SUMMARY_T}
-echo $(wc -l ${FOLDER}/4knext.SAM|cut -f 1 -d " ") >> ${SUMMARY_T}
+head -n 1 ${FOLDER}/mult_readcount.txt >> ${SUMMARY_T}
+
 
 samtools view -@ ${NUMPR} -b ${FOLDER}/4knext.SAM -t ${FOLDER}/header_mod.txt > ${FOLDER}/4knext.BAM
 samtools fastq -n ${FOLDER}/4knext.BAM > ${FOLDER}/4knext.fastq 2>/dev/null
-rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt
+rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/multreads_done.txt ${FOLDER}/best_alscor.txt ${FOLDER}/mult_readcount.txt
 
 #sed -e '/^\s*$/d' ${FOLDER}/unique.SAM > ${FOLDER}/uniq2.SAM #no se porque esto esta aqui, pudo haber sido un bug que ya no está
 #mv ${FOLDER}/uniq2.SAM ${FOLDER}/unique.SAM
