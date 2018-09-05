@@ -83,8 +83,8 @@ check_sam(){
  >${1}/header.txt
  awk -v FOLD="$1" '{
  if($1~/^@/) {print $0 >> FOLD"/header.txt";} #Remove header sequencs
- else if(($2-256)<0){ #check if the alignment is the principal
- #if(($2-256)<0){ #check if the alignment is the principal
+ #else if(($2-256)<0){ #check if the alignment is the principal
+ if(($2-256)<0){ #check if the alignment is the principal
   if($13~/XS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
    split($12,a,":");
    print $0 ; print $1,a[3] >> FOLD"/best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
@@ -202,8 +202,8 @@ then
  echo "Done"
  
  echo "Geting possible RepOthers"
- samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${folder_gral}/gen4bedt.txt 
- samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t" >${folder_gral}/gen4samt.txt 
+ samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${folder_gral}/gen4bedt.txt 
+ samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t" >${folder_gral}/gen4samt.txt 
  coverage2transcrip.sh ${numpro} ${folder5} ${folder1} ${folder2} ${folder3} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt ${mincov} ${cutoff} &>> ${folder_gral}/RepOthers-ome.log
  echo "Done"
 
