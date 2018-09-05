@@ -9,12 +9,21 @@
 #####################
 
 
+wget ftp://ftp.ensembl.org/pub/release-93/gtf/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.93.chr.gtf.gz
+gunzip Drosophila_melanogaster.BDGP6.93.chr.gtf.gz
+sed -i 's/mitochondrion_genome/M/g' Drosophila_melanogaster.BDGP6.93.chr.gtf
+grep -v '#' Drosophila_melanogaster.BDGP6.93.chr.gtf |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" >Drosophila_melanogaster_mod.BDGP6.93.chr.gtf
+grep -P "\tgene\t.+(biotype.+rRNA|biotype.+tRNA)" Drosophila_melanogaster_mod.BDGP6.93.chr.gtf>Drosophila_melanogaster_rtM_RNA.gtf
+
+
 wget ftp://ftp.ensembl.org/pub/release-93/gff3/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.93.chr.gff3.gz
 gunzip Drosophila_melanogaster.BDGP6.93.chr.gff3.gz
-
 sed -i 's/mitochondrion_genome/M/g' Drosophila_melanogaster.BDGP6.93.chr.gff3
-grep -v '#' Drosophila_melanogaster.BDGP6.93.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" >Drosophila_melanogaster_mod.BDGP6.93.chr.gff3
-grep -P 'ncRNA_gene.+(biotype=rRNA|biotype=tRNA)' Drosophila_melanogaster_mod.BDGP6.93.chr.gff3 > Drosophila_melanogaster_rtM_RNA.gff3
-grep -P '\tchromosome\t' Drosophila_melanogaster_mod.BDGP6.93.chr.gff3 | grep -Pv 'chr\d+|chrX|chrY' >>Drosophila_melanogaster_rtM_RNA.gff3
-awk '{print $1,$4,$5,$9,$7}' OFS="\t" Drosophila_melanogaster_rtM_RNA.gff3 >Drosophila_melanogaster_rtM_RNA.bed
-rm Drosophila_melanogaster.BDGP6.93.chr.gff3
+grep -v '#' Drosophila_melanogaster.BDGP6.93.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Drosophila_melanogaster_mod.BDGP6.93.chr.gff3
+grep -P '\tchromosome\t' Drosophila_melanogaster_mod.BDGP6.93.chr.gff3|grep -Pv 'chr\d+|chrX|chrY' >>Drosophila_melanogaster_rtM_RNA.gtf
+
+awk -F "\t" '{print $1,$4,$5,$9,$7}' OFS="\t" Drosophila_melanogaster_rtM_RNA.gtf >>Drosophila_melanogaster_rtM_RNA.bed
+
+rm Drosophila_melanogaster.BDGP6.93.chr.gff3 Drosophila_melanogaster_mod.BDGP6.93.chr.gff3 Drosophila_melanogaster.BDGP6.93.chr.gtf
+
+
