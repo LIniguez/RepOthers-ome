@@ -59,7 +59,7 @@ perl -e '{ open(IN,"$ARGV[0]");$num=0;while(<IN>){@vec=split("\t",$_);
    for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;}}
   }else{print $_; if(!$exists{$vec[0]} && !($vec[0] =~ /^@/)){$exists{$vec[0]}=1;$num++;} }}open(OU, ">>$ARGV[1]"); print OU "$num\n";}' ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/unique_temp.SAM 
 
-mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM
+mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM ${FOLDER}/multiple_temp.SAM
 
 
 echo "Unique mapped reads:" >> ${SUMMARY_T}
@@ -77,10 +77,10 @@ rm ${FOLDER}/4knext.SAM ${FOLDER}/4knext.BAM ${FOLDER}/readcount.txt ${FOLDER}/m
 #sed -e '/^\s*$/d' ${FOLDER}/unique.SAM > ${FOLDER}/uniq2.SAM #no se porque esto esta aqui, pudo haber sido un bug que ya no está
 #mv ${FOLDER}/uniq2.SAM ${FOLDER}/unique.SAM
 samtools view -@ ${NUMPR} -b -h -L ${RTRNACHRM} -U ${FOLDER}/uniq_nortRNAM.BAM -t ${FOLDER}/header_mod.txt ${FOLDER}/unique.SAM > ${FOLDER}/rtRNAchrM.BAM
-samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/uniq_nortRNAM.BAM > ${FOLDER}/exons.BAM
+samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/uniq_nortRNAM.BAM > ${FOLDER}/exons_sorted.BAM
 
 echo "Reads unique mapped to exons:" >> ${SUMMARY_T}
-echo $(samtools stats ${FOLDER}/exons.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
+echo $(samtools stats ${FOLDER}/exons_sorted.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
 echo "Reads unique mapped to rtRNA and chrM:" >> ${SUMMARY_T}
 echo $(samtools stats ${FOLDER}/rtRNAchrM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
 echo "Reads unique mapped left:" >> ${SUMMARY_T}
@@ -113,14 +113,14 @@ echo "Multiple mapped reads left:" >>  ${SUMMARY_T}
 cut -f 2 ${FOLDER}/reads_passed.txt | sort --parallel ${NUMPR} | uniq -c >> ${SUMMARY_T}
 
 samtools view -@ ${NUMPR} -b ${FOLDER}/DONE_multiple_k${MAXALL}.SAM -t ${FOLDER}/header_mod.txt > ${FOLDER}/DONE_multiple_k${MAXALL}.BAM
-samtools sort -@ ${NUMPR} -o ${FOLDER}/exons_sorted.BAM ${FOLDER}/exons.BAM 2>/dev/null #good to sort
-samtools sort -@ ${NUMPR} -o ${FOLDER}/rtRNAchrM_sorted.BAM ${FOLDER}/rtRNAchrM.BAM 2>/dev/null #good to sort Maybe all rtRNA is a dinosaur
+#samtools sort -@ ${NUMPR} -o ${FOLDER}/exons_sorted.BAM ${FOLDER}/exons.BAM 2>/dev/null #good to sort
+#samtools sort -@ ${NUMPR} -o ${FOLDER}/rtRNAchrM_sorted.BAM ${FOLDER}/rtRNAchrM.BAM 2>/dev/null #good to sort Maybe all rtRNA is a dinosaur
 #samtools sort -@ ${NUMPR} -o ${FOLDER}/DONE_multiple_k${MAXALL}_sorted.BAM ${FOLDER}/DONE_multiple_k${MAXALL}.BAM 2>/dev/null
 #samtools sort -@ ${NUMPR} -o ${FOLDER}/DONE_uniq_k${MAXALL}_sorted.BAM ${FOLDER}/uniq_noexons_nortRNAM.BAM 2>/dev/null
 mv ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/DONE_uniq_k${MAXALL}.BAM
 
 #rm ${FOLDER}/exons.BAM ${FOLDER}/rtRNAchrM.BAM ${FOLDER}/header_mod.txt ${FOLDER}/uniq_noexons_nortRNAM.BAM ${FOLDER}/DONE_multiple_k${MAXALL}.SAM ${FOLDER}/DONE_multiple_k${MAXALL}.BAM ${FOLDER}/reads_passed.txt
-rm ${FOLDER}/exons.BAM ${FOLDER}/rtRNAchrM.BAM ${FOLDER}/header_mod.txt  ${FOLDER}/DONE_multiple_k${MAXALL}.SAM  ${FOLDER}/reads_passed.txt
+rm  ${FOLDER}/rtRNAchrM.BAM ${FOLDER}/header_mod.txt  ${FOLDER}/DONE_multiple_k${MAXALL}.SAM  ${FOLDER}/reads_passed.txt
 
 #samtools view -@ ${NUMPR} -F 256 -b -h ${FOLDER}/DONE_multiple_k${MAXALL}_sorted.BAM > ${FOLDER}/multiple.BAM
 samtools view -@ ${NUMPR} -F 256 -b -h ${FOLDER}/DONE_multiple_k${MAXALL}.BAM > ${FOLDER}/multiple.BAM
