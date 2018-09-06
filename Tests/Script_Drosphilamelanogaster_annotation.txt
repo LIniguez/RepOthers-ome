@@ -3,6 +3,8 @@
 #Version dm6 was downloaded
 #Note:It is important to have the M and other non primary chromosomes (additional chromosomes)
 #
+#it is needed to report where the sequence and DB were obtained at least some code if there were igenomes
+#
 #Annotation file was downloaded from ensemble and modified with the following script
 #in order to have the rRNA, tRNA and additional chromosomes excluded by RepOthers-ome
 #
