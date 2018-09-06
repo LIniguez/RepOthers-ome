@@ -251,9 +251,9 @@ then
  count_transcripts.R ${folder_gral}/RepOthers_splicing.bam ${folder_gral}/RepOthers.gtf transcript gene_id ${folder_gral}/RepOthers_splicing TRUE &>> ${folder_gral}/RepOthers-ome.log
 
 
- samtools merge -f ${folder_gral}/Exons_temp.bam ${folder1}/exons_sorted.BAM ${folder2}/exons_sorted.BAM ${folder3}/exons_sorted.BAM ${folder4}/exons_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
+ samtools cat -o ${folder_gral}/Exons_temp.bam ${folder1}/exons_sorted.BAM ${folder2}/exons_sorted.BAM ${folder3}/exons_sorted.BAM ${folder4}/exons_sorted.BAM &>> ${folder_gral}/RepOthers-ome.log
  samtools sort -@ ${numpro} ${folder_gral}/Exons_temp.bam -o ${folder_gral}/Exons.bam &>> ${folder_gral}/RepOthers-ome.log
- count_transcripts.R ${folder_gral}/Exons.bam ${exons} exon gene_id ${folder_gral}/Gene FALSE &>> ${folder_gral}/RepOthers-ome.log
+ count_transcripts.R ${folder_gral}/Exons.bam ${exons} exon gene_id ${folder_gral}/Gene FALSE &>> ${folder_gral}/RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
  count_transcripts.R ${folder_gral}/Exons.bam ${exons} exon transcript_id ${folder_gral}/Transcript FALSE &>> ${folder_gral}/RepOthers-ome.log
 
  rm ${folder_gral}/Exons_temp.bam ${folder_gral}/exons_anotation.bed
