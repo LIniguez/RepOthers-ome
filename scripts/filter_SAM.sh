@@ -59,7 +59,8 @@ perl -e '{ open(IN,"$ARGV[0]");$num=0;while(<IN>){@vec=split("\t",$_);
    for($i=1;$i<=$times;$i++){ $vec[0]=$name."_".$i;$o=join("\t",@vec);print $o; if(!$exists{$vec[0]}){$exists{$vec[0]}=1;$num++;}}
   }else{print $_; if(!$exists{$vec[0]} && !($vec[0] =~ /^@/)){$exists{$vec[0]}=1;$num++;} }}open(OU, ">>$ARGV[1]"); print OU "$num\n";}' ${FOLDER}/unique.SAM ${FOLDER}/mult_readcount.txt > ${FOLDER}/unique_temp.SAM 
 
-mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM ${FOLDER}/multiple_temp.SAM
+mv ${FOLDER}/unique_temp.SAM ${FOLDER}/unique.SAM
+rm ${FOLDER}/multiple_temp.SAM
 
 
 echo "Unique mapped reads:" >> ${SUMMARY_T}
