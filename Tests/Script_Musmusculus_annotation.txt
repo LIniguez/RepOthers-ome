@@ -1,24 +1,32 @@
 #####################
 #
-#Igenome was downloaded, fasta file was modified in order to have Chr1 and not only 1.
-#The bowtie2 and hisat2 indexes were build under with this new references.
-#Note:It is important to have the Mt and Pt (additional chromosomes)
+#Igenome was downloaded UCSC, 
+#Note:It is important to have the M (additional chromosomes)
 #
 #Annotation file was downloaded from http://gramene.org/ and modified with the following script
 #in order to have the rRNA, tRNA and additional chromosomes excluded by RepOthers-ome
 #
 #####################
 
-wget ftp://ftp.gramene.org/pub/gramene/release-58/gtf/zea_mays/Zea_mays.AGPv4.40.chr.gtf.gz
-gunzip Zea_mays.AGPv4.40.chr.gtf.gz
-grep -v '#' Zea_mays.AGPv4.40.chr.gtf |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Zea_mays.AGPv4_mod.40.chr.gtf 
-grep -P "\tgene\t.+(biotype.+rRNA|biotype.+tRNA)" Zea_mays.AGPv4_mod.40.chr.gtf > Zmay_rtM_RNA.gtf
+wget ftp://ftp.ensembl.org/pub/release-93/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.toplevel.fa.gz
+gunzip Mus_musculus.GRCm38.dna.toplevel.fa.gz
+awk '{if ($1 ~ /^>/){split($1,a,">");$1=">chr"a[2];}print $0}' Mus_musculus.GRCm38.dna.toplevel.fa > Mus_musculus.GRCm38.fa
+mkdir bowtie2
+bowtie2-build --threads $(nproc) Mus_musculus.GRCm38.fa bowtie2/genome -q
+mkdir hisat2
+hisat2-build -p $(nproc) Mus_musculus.GRCm38.fa hisat2/genome -q
+rm Mus_musculus.GRCm38.fa
 
-wget ftp://ftp.gramene.org/pub/gramene/release-58/gff3/zea_mays/Zea_mays.AGPv4.40.chr.gff3.gz
-gunzip Zea_mays.AGPv4.40.chr.gff3.gz
-grep -v '#' Zea_mays.AGPv4.40.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Zea_mays.AGPv4_mod.40.chr.gff3
-grep -P '\tchromosome\t' Zea_mays.AGPv4_mod.40.chr.gff3 | grep -Pv 'chr\d+|chrX|chrY' >> Zmay_rtM_RNA.gtf
+wget ftp://ftp.ensembl.org/pub/release-93/gtf/mus_musculus/Mus_musculus.GRCm38.93.chr.gtf.gz
+gunzip Mus_musculus.GRCm38.93.chr.gtf.gz
+grep -v '#' Mus_musculus.GRCm38.93.chr.gtf |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Mus_musculus.GRCm38_mod.93.chr.gtf 
+grep -P "\tgene\t.+(gene_biotype.+rRNA|biotype.+tRNA)" Mus_musculus.GRCm38_mod.93.chr.gtf > Mmusculus_rtM_RNA.gtf
 
-awk -F "\t" '{print $1,$4,$5,$9,$7}' OFS="\t" Zmay_rtM_RNA.gtf >Zmay_rtM_RNA.bed
+wget ftp://ftp.ensembl.org/pub/release-93/gff3/mus_musculus/Mus_musculus.GRCm38.93.chr.gff3.gz 
+gunzip Mus_musculus.GRCm38.93.chr.gff3.gz
+grep -v '#' Mus_musculus.GRCm38.93.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Mus_musculus_mod.GRCm38.93.chr.gff3 
+grep -P '\tchromosome\t' Mus_musculus_mod.GRCm38.93.chr.gff3 | grep -Pv 'chr\d+|chrX|chrY' >> Mmusculus_rtM_RNA.gtf
+
+awk -F "\t" '{print $1,$4,$5,$9,$7}' OFS="\t" Mmusculus_rtM_RNA.gtf > Mmusculus_rtM_RNA.bed
 
 rm Zea_mays.AGPv4_mod.40.chr.gff3 Zea_mays.AGPv4.40.chr.gff3 Zea_mays.AGPv4.40.chr.gtf 
