@@ -202,8 +202,8 @@ then
  echo "Done"
  
  echo "Geting possible RepOthers"
- samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${folder_gral}/gen4bedt.txt 
- samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t" >${folder_gral}/gen4samt.txt 
+ samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" | grep -v '_' >${folder_gral}/gen4bedt.txt 
+ samtools view -H ${folder1}/exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t"| grep -v '_'  >${folder_gral}/gen4samt.txt 
  coverage2transcrip.sh ${numpro} ${folder5} ${folder1} ${folder2} ${folder3} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt ${mincov} ${cutoff} &>> ${folder_gral}/RepOthers-ome.log
  echo "Done"
 
