@@ -16,7 +16,7 @@ mkdir -p hisat2
 hisat2-build -p 8 Zea_mays.AGPv4.fa hisat2/genome
 mkdir -p bowtie2
 bowtie2-build --threads 8 Zea_mays.AGPv4.fa bowtie2/genome
-
+rm Zea_mays.AGPv4.dna.toplevel.fa Zea_mays.AGPv4.fa
 
 
 wget ftp://ftp.gramene.org/pub/gramene/release-58/gtf/zea_mays/Zea_mays.AGPv4.40.chr.gtf.gz
