@@ -17,16 +17,22 @@ mkdir hisat2
 hisat2-build -p $(nproc) Mus_musculus.GRCm38.fa hisat2/genome -q
 rm Mus_musculus.GRCm38.fa
 
-wget ftp://ftp.ensembl.org/pub/release-93/gtf/mus_musculus/Mus_musculus.GRCm38.93.chr.gtf.gz
-gunzip Mus_musculus.GRCm38.93.chr.gtf.gz
-grep -v '#' Mus_musculus.GRCm38.93.chr.gtf |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Mus_musculus.GRCm38_mod.93.chr.gtf 
-grep -P "\tgene\t.+(gene_biotype.+rRNA|biotype.+tRNA)" Mus_musculus.GRCm38_mod.93.chr.gtf > Mmusculus_rtM_RNA.gtf
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M18/gencode.vM18.annotation.gtf.gz
+gunzip gencode.vM18.annotation.gtf.gz
+grep -P "gene_type.+rRNA" gencode.vM18.annotation.gtf > Mmusculus_rtM_RNA.gtf
 
-wget ftp://ftp.ensembl.org/pub/release-93/gff3/mus_musculus/Mus_musculus.GRCm38.93.chr.gff3.gz 
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M18/gencode.vM18.tRNAs.gtf.gz
+gunzip gencode.vM18.tRNAs.gtf.gz
+cat gencode.vM18.tRNAs.gtf >> Mmusculus_rtM_RNA.gtf
+rm gencode.vM18.tRNAs.gtf 
+
+wget ftp://ftp.ensembl.org/pub/release-93/gff3/mus_musculus/Mus_musculus.GRCm38.93.chr.gff3.gz
 gunzip Mus_musculus.GRCm38.93.chr.gff3.gz
-grep -v '#' Mus_musculus.GRCm38.93.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Mus_musculus_mod.GRCm38.93.chr.gff3 
+grep -v '#' Mus_musculus.GRCm38.93.chr.gff3 |awk -F "\t" '{$1= "chr"$1;print$0;}' OFS="\t" > Mus_musculus_mod.GRCm38.93.chr.gff3
 grep -P '\tchromosome\t' Mus_musculus_mod.GRCm38.93.chr.gff3 | grep -Pv 'chr\d+|chrX|chrY' >> Mmusculus_rtM_RNA.gtf
+
 
 awk -F "\t" '{print $1,$4,$5,$9,$7}' OFS="\t" Mmusculus_rtM_RNA.gtf > Mmusculus_rtM_RNA.bed
 
-rm Zea_mays.AGPv4_mod.40.chr.gff3 Zea_mays.AGPv4.40.chr.gff3 Zea_mays.AGPv4.40.chr.gtf 
+
+rm Mus_musculus_mod.GRCm38.93.chr.gff3 Mus_musculus.GRCm38.93.chr.gff3 
