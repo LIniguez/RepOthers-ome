@@ -13,7 +13,7 @@ BED=$6
 
 samtools merge -@ ${NUMPROC} -f ${FOLDER}/${ROUND}_temp.bam ${FOLDER}/${ROUND}round_*-updated_sorted.bam
 samtools view -H ${FOLDER}/${ROUND}_temp.bam | grep -P '@SQ'| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDER}/header_mod.txt
-samtools view -@ ${NUMPROC} -L ${GEN4SMT} ${FOLDER}/${ROUND}_temp.bam | awk '{ for (i=1; i<=NF; ++i) { if ($i ~ "XP:i") {split($i,a,":");if(a[3]>=90){ if($0 !~ "ZF:Z:__no_feature"){print $0;next;}}}}}' OFS="\t" > ${FOLDER}/${ROUND}_telescope_res.sam
+samtools view -@ ${NUMPROC} -L ${GEN4SMT} ${FOLDER}/${ROUND}_temp.bam | awk '{ for (i=1; i<=NF; ++i) { if ($i ~ "XP:i") {split($i,a,":");if(a[3]>=90){ if($0 !~ "ZF:Z:__no_feature"){print $0;next;}}}}}' OFS="\t" > ${FOLDER}/${ROUND}_telescope_res.sam #90 means the confiability of read assignment. 
 samtools view -@ ${NUMPROC} -t ${FOLDER}/header_mod.txt -b ${FOLDER}/${ROUND}_telescope_res.sam > ${FOLDER}/${ROUND}_2.bam  #remove sequence not present in gen4smt regions
 #samtools sort -@ ${NUMPROC} -o ${FOLDER}/${ROUND}_2.bam ${FOLDER}/${ROUND}_telescope_res.bam
 
