@@ -211,7 +211,7 @@ then
  mkdir -p ${folder6}
  if [ $(wc -c ${folder5}/vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
  then
-  network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log 
+  network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}/gen4samt.txt ${folder_gral}/gen4bedt.txt &>> ${folder_gral}/RepOthers-ome.log
  fi
  rm ${folder_gral}/gen4bedt.txt ${folder_gral}/gen4samt.txt
  echo "Done"
