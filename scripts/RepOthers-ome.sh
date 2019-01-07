@@ -2,6 +2,9 @@
 
 set -e
 set -u
+
+
+
 numpro=1
 startin=4
 folder_gral=./
@@ -38,7 +41,23 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
   hi_index=$OPTARG
   ;;
  h)
-  echo "Aqui viene una ayuda"
+  echo "Elseome version 1.0 by Luis Pedro Iniguez (lpr4001@med.cornell.edu)">&2
+  echo "Usage:">&2
+  echo -e " Elseome [options] -b <bowtie2-index> -i <hisat2-index> -e <gene_annotations> -r <removable_regions> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}">&2
+  echo -e "  <bowtie2-index>\tIndex filename prefix of bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)" >&2
+  echo -e "  <hisat2-index>\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)" >&2
+  echo -e "  <gene_annotations>\tGene annotations, gtf format, gene and transcript unique count. " >&2
+  echo -e "  <removable_regions>\tRemovable regions, bed format, regions not willing to be count treated as black holes" >&2
+  echo -e "  <fastq>\tFastq for unpaired experiments" >&2
+  echo -e "  <_1.fastq>\tFastq for left pair" >&2
+  echo -e "  <_2.fastq>\tFastq for right pair" >&2
+  echo -e "\n NOTE: Annotations and chromosome coordenates should be chr[\d+|\w+] not only [\d+|\w+], this is for bowtie indexes as well as gtf/bed files used." >&2
+  echo -e "\n\n Options (default):" >&2
+  echo -e "  -n\tName prefix">&2
+  echo -e "  -o\tOutput folder (./)">&2
+  echo -e "  -S\tWhere to start Elseome [options: 4,100,500,hisat,telesc] (4)">&2
+  echo -e "  -p\tNumber of threads to launch (1)">&2
+  echo -e "  -h\tThis help messege">&2
   exit 1
   ;;
  1)
@@ -54,7 +73,7 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
   startin=$OPTARG
   ;;
  ?)
-  echo "script usage: $(basename $0) [-l] [-h] [-a somevalue]" >&2 #mensaje de ayuda para correr comando en caso de que haya un parametro que no venga al caso
+  echo "script usage: $(basename $0) [options] -b <bowtie2-index> -i <hisat2-index> -e <gene_annotations> -r <removable_regions> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}" >&2 #mensaje de ayuda para correr comando en caso de que haya un parametro que no venga al caso
   exit 1
   ;;
  esac
@@ -64,9 +83,6 @@ done
 
 
 mkdir -p ${folder_gral}
-#folder_gral=$(echo $folder_gral"/"$name"_")
-
-#mkdir -p ${folder_gral}
 if [ -z "$name" ]
 then folder_gral=$(echo $folder_gral"/")
 else folder_gral=$(echo $folder_gral"/"$name"_")
@@ -75,26 +91,21 @@ fi
 
 
 if [ -z "$bow_index" ] || [ -z "$rtRNA_MChr" ] || [ -z "$exons" ] || [ -z "$hi_index" ]
-then
- echo "Not all annotations/DB needed" && exit 1
+then echo "Not all annotations/DB needed" >&2 && exit 1
 fi
 
 if [ -z "$fastq1" ] || [ -z "$fastq2" ]
 then
  if [ -z "$fastq" ]
- then
-  echo "Missing fastq file(s)" && exit 1
- else
-  paired=FALSE
+ then echo "Missing fastq file(s)" >&2 && exit 1
+ else paired=FALSE
  fi
-else
- paired=TRUE
- fastq=${folder_gral}test_joined.fastq
+else paired=TRUE; fastq=${folder_gral}test_joined.fastq
 fi
 
 
 
-
+echo "Welckome to Elseome"
 check_sam(){
  >${1}unique.SAM
  >${1}best_alscor.txt
