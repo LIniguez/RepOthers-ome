@@ -60,11 +60,19 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
  esac
 done
 
-if
+
 
 
 mkdir -p ${folder_gral}
-if [ -z "$name" ];then folder_gral=$(echo $folder_gral"/"$name"_");else folder_gral=$(echo $folder_gral"/"$name"_"); fi
+#folder_gral=$(echo $folder_gral"/"$name"_")
+
+#mkdir -p ${folder_gral}
+if [ -z "$name" ]
+then folder_gral=$(echo $folder_gral"/")
+else folder_gral=$(echo $folder_gral"/"$name"_")
+fi
+
+
 
 if [ -z "$bow_index" ] || [ -z "$rtRNA_MChr" ] || [ -z "$exons" ] || [ -z "$hi_index" ]
 then
