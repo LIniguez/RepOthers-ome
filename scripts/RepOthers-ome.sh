@@ -43,9 +43,8 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
  h)
   echo "Elseome version 1.0 by Luis Pedro Iniguez (lpr4001@med.cornell.edu)">&2
   echo "Usage:">&2
-  echo -e " Elseome [options] -b <bowtie2-index> -i <hisat2-index> -e <gene_annotations> -r <removable_regions> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}">&2
+  echo -e " Elseome [options] -b <bowtie2-index> -e <gene_annotations> -r <removable_regions> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}">&2
   echo -e "  <bowtie2-index>\tIndex filename prefix of bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)" >&2
-  echo -e "  <hisat2-index>\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)" >&2
   echo -e "  <gene_annotations>\tGene annotations, gtf format, gene and transcript unique count. " >&2
   echo -e "  <removable_regions>\tRemovable regions, bed format, regions not willing to be count treated as black holes" >&2
   echo -e "  <fastq>\tFastq for unpaired experiments" >&2
@@ -53,6 +52,7 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
   echo -e "  <_2.fastq>\tFastq for right pair" >&2
   echo -e "\n NOTE: Annotations and chromosome coordenates should be chr[\d+|\w+] not only [\d+|\w+], this is for bowtie indexes as well as gtf/bed files used." >&2
   echo -e "\n\n Options (default):" >&2
+  echo -e "  -i\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)" >&2
   echo -e "  -n\tName prefix">&2
   echo -e "  -o\tOutput folder (./)">&2
   echo -e "  -S\tWhere to start Elseome [options: 4,100,500,hisat,telesc] (4)">&2
@@ -90,9 +90,9 @@ fi
 
 
 
-if [ -z "$bow_index" ] || [ -z "$rtRNA_MChr" ] || [ -z "$exons" ] || [ -z "$hi_index" ]
-then echo "Not all annotations/DB needed" >&2 && exit 1
-fi
+if [ -z "$bow_index" ]  || [ -z "$exons" ]; then echo "Not all annotations/DB needed" >&2 && exit 1;fi
+if [ -z "$rtRNA_MChr" ]; then rtRNA_MChr="NA";fi
+if [ -z "$hi_index" ]; then hi_index="NA";fi
 
 if [ -z "$fastq1" ] || [ -z "$fastq2" ]
 then
@@ -105,7 +105,7 @@ fi
 
 
 
-echo "Welckome to Elseome"
+echo "Welcome to Elseome"
 check_sam(){
  >${1}unique.SAM
  >${1}best_alscor.txt
@@ -132,13 +132,13 @@ check_mult(){
    if( $h{$read} < $MAX ){ print OUT "$read\n";}}}}' -s -- -OUT=${FOLD}multreads_done.txt -MAX=${MAX}
 }
 unali=${folder_gral}unalign_temp.gz
-unali2=${folder_gral}unalign.bz2
+unali2=${folder_gral}unalign.gz
 folder1=${folder_gral}mapping_4/
 folder2=${folder_gral}mapping_100/
 folder3=${folder_gral}mapping_500/
 folder4=${folder_gral}mapping_splicesites/
 folder5=${folder_gral}transcripts/
-folder6=${folder_gral}networ
+folder6=${folder_gral}network/
 randfastq=${folder_gral}for_random.fq
 out_rand=${folder_gral}random
 
@@ -158,11 +158,12 @@ then
  echo " Bowtie2 -k4"
  #First Bowtie2 with a small number of possible alignments
  bowtie2 --seed 22062018 --un-gz ${unali} --no-unal --score-min L,0,1.6 -p ${numpro} -k 4 --very-sensitive-local -x ${bow_index} -U ${fastq} 2>> ${folder_gral}RepOthers-ome.log | check_sam ${folder1} | check_mult ${folder1} 4 > ${folder1}multiple.SAM
- filter_SAM.sh ${numpro} ${folder1} ${folder_gral}summary.txt ${folder_gral}exons_anotation.bed ${rtRNA_MChr} 4 &>> ${folder_gral}RepOthers-ome.log
+ filter_SAM.sh -p ${numpro} -f ${folder1} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 4 &>> ${folder_gral}RepOthers-ome.log
  fastx_collapser -i ${folder1}4knext.fastq -o ${folder1}4knext.fasta
  rm ${folder1}4knext.fastq
 
 fi
+
 
 
 if [ $startin == "4" ] || [ $startin == "100" ]
@@ -171,7 +172,7 @@ then
  echo " Bowtie2 -k100"
  #Second round
  bowtie2 --seed 22062018 --no-unal --score-min L,0,1.6 -f -p ${numpro} -k 100 --very-sensitive-local -x ${bow_index} -U ${folder1}4knext.fasta 2>> ${folder_gral}RepOthers-ome.log | check_sam ${folder2} | check_mult ${folder2} 100 > ${folder2}multiple.SAM
- filter_SAM.sh ${numpro} ${folder2} ${folder_gral}summary.txt ${folder_gral}exons_anotation.bed ${rtRNA_MChr} 100 &>> ${folder_gral}RepOthers-ome.log
+ filter_SAM.sh -p ${numpro} -f ${folder2} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 100 &>> ${folder_gral}RepOthers-ome.log
 fi
 
 if [ $startin == "4" ] || [ $startin == "100" ] || [ $startin == "500" ]
@@ -180,20 +181,23 @@ then
  echo " Bowtie2 -k500"
  #Third round
  bowtie2 --seed 22062018  --no-unal --score-min L,0,1.6 -p ${numpro} -k 500 --very-sensitive-local -x ${bow_index} -U ${folder2}4knext.fastq 2>> ${folder_gral}RepOthers-ome.log | check_sam ${folder3} | check_mult ${folder3} 500 > ${folder3}multiple.SAM
- filter_SAM.sh ${numpro} ${folder3} ${folder_gral}summary.txt ${folder_gral}exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}RepOthers-ome.log
+ filter_SAM.sh -p ${numpro} -f ${folder3} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 500 &>> ${folder_gral}RepOthers-ome.log
 fi
 
 if [ $startin == "4" ] || [ $startin == "100" ] || [ $startin == "500" ] || [ $startin == "hisat" ]
 then
- mkdir -p ${folder4}
- echo " hisat2"
- #hisat2
- hisat2 --seed 22062018 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}RepOthers-ome.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
- echo -e "\nSpliced Reads:\n" >> ${folder_gral}summary.txt
- filter_SAM.sh ${numpro} ${folder4} ${folder_gral}summary.txt ${folder_gral}exons_anotation.bed ${rtRNA_MChr} 500 &>> ${folder_gral}RepOthers-ome.log
- sort -V -k1,1 -k2,2n ${folder_gral}novel.spli.bed > ${folder_gral}splicesites_sorted.bed
- rm ${folder_gral}novel.spli.bed ${unali}
- echo "Done"
+  if [ $hi_index != "NA" ]
+  then
+    mkdir -p ${folder4}
+    echo " hisat2"
+    #hisat2
+    hisat2 --seed 22062018 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}RepOthers-ome.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
+    echo -e "\nSpliced Reads:\n" >> ${folder_gral}summary.txt
+    filter_SAM.sh -p ${numpro} -f ${folder4} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 500 &>> ${folder_gral}RepOthers-ome.log
+    sort -V -k1,1 -k2,2n ${folder_gral}novel.spli.bed > ${folder_gral}splicesites_sorted.bed
+    rm ${folder_gral}novel.spli.bed ${unali}
+    echo "Done"
+  fi
 fi
 
 
@@ -267,21 +271,30 @@ then
 
  awk '{a=$1"_"$2"_"$3; b="gene_id \""a"\"; transcript_id \""a"\"; locus \""a"\";"; print $1,"repeatsome","transcript",$2,$3,".",".",".",b;}' OFS="\t" ${folder_gral}RepOthers.bed > ${folder_gral}RepOthers.gtf
  count_transcripts.R ${folder_gral}RepOthers.bam ${folder_gral}RepOthers.gtf transcript gene_id ${folder_gral}RepOthers_nosplicing FALSE &>> ${folder_gral}RepOthers-ome.log
- samtools cat -o ${folder_gral}RepOthers_splicing_temp.bam ${folder4}DONE_uniq_k500.BAM ${folder4}DONE_multiple_k500.BAM &>> ${folder_gral}RepOthers-ome.log
- samtools sort -@ ${numpro} ${folder_gral}RepOthers_splicing_temp.bam -o ${folder_gral}RepOthers_splicing.bam &>> ${folder_gral}RepOthers-ome.log
- rm ${folder_gral}RepOthers_splicing_temp.bam
- count_transcripts.R ${folder_gral}RepOthers_splicing.bam ${folder_gral}RepOthers.gtf transcript gene_id ${folder_gral}RepOthers_splicing TRUE &>> ${folder_gral}RepOthers-ome.log
-
-
- samtools merge -f ${folder_gral}Exons_temp.bam ${folder1}exons_sorted.BAM ${folder2}exons_sorted.BAM ${folder3}exons_sorted.BAM ${folder4}exons_sorted.BAM &>> ${folder_gral}RepOthers-ome.log
- samtools sort -@ ${numpro} ${folder_gral}Exons_temp.bam -o ${folder_gral}Exons.bam &>> ${folder_gral}RepOthers-ome.log
- count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene FALSE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
- count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript FALSE &>> ${folder_gral}RepOthers-ome.log
+ if [ $hi_index != "NA" ]
+  then
+   samtools cat -o ${folder_gral}RepOthers_splicing_temp.bam ${folder4}DONE_uniq_k500.BAM ${folder4}DONE_multiple_k500.BAM &>> ${folder_gral}RepOthers-ome.log
+   samtools sort -@ ${numpro} ${folder_gral}RepOthers_splicing_temp.bam -o ${folder_gral}RepOthers_splicing.bam &>> ${folder_gral}RepOthers-ome.log
+   rm ${folder_gral}RepOthers_splicing_temp.bam
+   count_transcripts.R ${folder_gral}RepOthers_splicing.bam ${folder_gral}RepOthers.gtf transcript gene_id ${folder_gral}RepOthers_splicing TRUE &>> ${folder_gral}RepOthers-ome.log
+   samtools merge -f ${folder_gral}Exons_temp.bam ${folder1}exons_sorted.BAM ${folder2}exons_sorted.BAM ${folder3}exons_sorted.BAM ${folder4}exons_sorted.BAM &>> ${folder_gral}RepOthers-ome.log
+   samtools sort -@ ${numpro} ${folder_gral}Exons_temp.bam -o ${folder_gral}Exons.bam &>> ${folder_gral}RepOthers-ome.log
+   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene TRUE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
+   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript TRUE &>> ${folder_gral}RepOthers-ome.log
+   rm -r $folder1 $folder2 $folder3 $folder4 $folder5 $folder6
+  else
+    samtools merge -f ${folder_gral}Exons_temp.bam ${folder1}exons_sorted.BAM ${folder2}exons_sorted.BAM ${folder3}exons_sorted.BAM &>> ${folder_gral}RepOthers-ome.log
+    samtools sort -@ ${numpro} ${folder_gral}Exons_temp.bam -o ${folder_gral}Exons.bam &>> ${folder_gral}RepOthers-ome.log
+    count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene FALSE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
+    count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript FALSE &>> ${folder_gral}RepOthers-ome.log
+    mv ${unali} ${unali2}
+    rm -r $folder1 $folder2 $folder3 $folder5 $folder6
+fi
 
  rm ${folder_gral}Exons_temp.bam ${folder_gral}exons_anotation.bed
 
 
- rm -r $folder1 $folder2 $folder3 $folder4 $folder5 $folder6
+
 
  if [ $paired == "TRUE" ];
  then
