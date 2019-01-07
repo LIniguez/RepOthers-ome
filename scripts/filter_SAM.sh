@@ -1,22 +1,33 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 set -u
 
-# NUMPR=$1
-# FOLDER=$2
-# SAM=$3
-# SUMMARY_T=$4
-# EXONS=$5
-# RTRNACHRM=$6
-# MAXALL=$7
 
-NUMPR=$1
-FOLDER=$2
-SUMMARY_T=$3
-EXONS=$4
-RTRNACHRM=$5
-MAXALL=$6
+
+while getopts 'p:f:s:e:r:M:' OPTION;do
+case "$OPTION" in
+ p)
+  NUMPR=$OPTARG
+ ;;
+ f)
+  FOLDER=$OPTARG
+ ;;
+ s)
+  SUMMARY_T=$OPTARG
+ ;;
+ e)
+  EXONS=$OPTARG
+ ;;
+ r)
+  RTRNACHRM=$OPTARG
+ ;;
+ M)
+  MAXALL=$OPTARG
+ ;;
+esac
+done
+
 
 
 grep -P '@SQ' ${FOLDER}header.txt| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDER}header_mod.txt
@@ -75,39 +86,38 @@ samtools view -@ ${NUMPR} -b ${FOLDER}4knext.SAM -t ${FOLDER}header_mod.txt > ${
 samtools fastq -n ${FOLDER}4knext.BAM > ${FOLDER}4knext.fastq 2>/dev/null
 rm ${FOLDER}4knext.SAM ${FOLDER}4knext.BAM ${FOLDER}readcount.txt ${FOLDER}multreads_done.txt ${FOLDER}best_alscor.txt ${FOLDER}mult_readcount.txt
 
-
-samtools view -@ ${NUMPR} -b -h -L ${RTRNACHRM} -U ${FOLDER}uniq_nortRNAM.BAM -t ${FOLDER}header_mod.txt ${FOLDER}unique.SAM > ${FOLDER}rtRNAchrM.BAM
-samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}uniq_noexons_nortRNAM.BAM ${FOLDER}uniq_nortRNAM.BAM > ${FOLDER}exons_sorted.BAM
+if [ $RTRNACHRM != "NA" ]
+then
+ samtools view -@ ${NUMPR} -b -h -L ${RTRNACHRM} -U ${FOLDER}uniq_nortRNAM.BAM -t ${FOLDER}header_mod.txt ${FOLDER}unique.SAM > ${FOLDER}rtRNAchrM.BAM
+ samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}uniq_noexons_nortRNAM.BAM ${FOLDER}uniq_nortRNAM.BAM > ${FOLDER}exons_sorted.BAM
+ echo "Reads unique mapped to rtRNA and chrM:" >> ${SUMMARY_T}
+ echo $(samtools stats ${FOLDER}rtRNAchrM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
+ rm ${FOLDER}uniq_nortRNAM.BAM
+ samtools view -@ ${NUMPR} -L ${RTRNACHRM} -U ${FOLDER}multiple_nortRNAM.SAM -t ${FOLDER}header_mod.txt ${FOLDER}multiple.SAM |cut -f 1 | sort --parallel ${NUMPR} -u > ${FOLDER}trashreads.txt
+ samtools view -@ ${NUMPR} -L ${EXONS} -U ${FOLDER}multiple_noexons_nortRNAM.SAM -t ${FOLDER}header_mod.txt ${FOLDER}multiple_nortRNAM.SAM | cut -f 1 | sort --parallel ${NUMPR} -u >> ${FOLDER}trashreads.txt
+ rm ${FOLDER}multiple_nortRNAM.SAM ${FOLDER}rtRNAchrM.BAM
+else
+ samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}uniq_noexons_nortRNAM.BAM -t ${FOLDER}header_mod.txt ${FOLDER}unique.SAM > ${FOLDER}exons_sorted.BAM
+ samtools view -@ ${NUMPR} -L ${EXONS} -U ${FOLDER}multiple_noexons_nortRNAM.SAM -t ${FOLDER}header_mod.txt ${FOLDER}multiple.SAM | cut -f 1 | sort --parallel ${NUMPR} -u > ${FOLDER}trashreads.txt
+fi
 
 echo "Reads unique mapped to exons:" >> ${SUMMARY_T}
 echo $(samtools stats ${FOLDER}exons_sorted.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
-echo "Reads unique mapped to rtRNA and chrM:" >> ${SUMMARY_T}
-echo $(samtools stats ${FOLDER}rtRNAchrM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
+echo "Reads multiple mapped eliminated:" >> ${SUMMARY_T}
+echo $(wc -l ${FOLDER}trashreads.txt| cut -f 1 -d " ") >> ${SUMMARY_T}
 echo "Reads unique mapped left:" >> ${SUMMARY_T}
 echo $(samtools stats ${FOLDER}uniq_noexons_nortRNAM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SUMMARY_T}
-
-rm ${FOLDER}uniq_nortRNAM.BAM ${FOLDER}unique.SAM
-
-samtools view -@ ${NUMPR} -L ${RTRNACHRM} -U ${FOLDER}multiple_nortRNAM.SAM -t ${FOLDER}header_mod.txt ${FOLDER}multiple.SAM |cut -f 1 | sort --parallel ${NUMPR} -u > ${FOLDER}trashreads_rtRNAM.txt
-samtools view -@ ${NUMPR} -L ${EXONS} -U ${FOLDER}multiple_noexons_nortRNAM.SAM -t ${FOLDER}header_mod.txt ${FOLDER}multiple_nortRNAM.SAM | cut -f 1 | sort --parallel ${NUMPR} -u > ${FOLDER}trashreads_exons.txt
-
-echo "Reads multiple mapped to exons:" >> ${SUMMARY_T}
-echo $(wc -l ${FOLDER}trashreads_exons.txt| cut -f 1 -d " ") >> ${SUMMARY_T}
-echo "Reads multiple mapped to rtRNA and chrM:" >> ${SUMMARY_T}
-echo $(wc -l ${FOLDER}trashreads_rtRNAM.txt| cut -f 1 -d " ") >> ${SUMMARY_T}
-
-rm ${FOLDER}multiple_nortRNAM.SAM ${FOLDER}multiple.SAM
+rm ${FOLDER}multiple.SAM ${FOLDER}unique.SAM
 
 perl -e '{open(RE1,"$ARGV[0]"); while($l=<RE1>){chomp $l;$re{$l}=1;}close(RE1);
- open(RE2,"$ARGV[1]"); while($l=<RE2>){chomp $l;$re{$l}=1;}close(RE2);
- open(SM, "$ARGV[2]"); open (CNT, ">$ARGV[3]");
+ open(SM, "$ARGV[1]"); open (CNT, ">$ARGV[2]");
  while(<SM>){
   @vec=split("\t",$_);
   if(!$re{$vec[0]}){print $_; $h{$vec[0]}++;}
  }foreach $read (keys %h){print CNT "$read\t$h{$read}\n";}
- }' ${FOLDER}trashreads_exons.txt ${FOLDER}trashreads_rtRNAM.txt ${FOLDER}multiple_noexons_nortRNAM.SAM ${FOLDER}reads_passed.txt >${FOLDER}DONE_multiple_k${MAXALL}.SAM
+ }' ${FOLDER}trashreads.txt ${FOLDER}multiple_noexons_nortRNAM.SAM ${FOLDER}reads_passed.txt >${FOLDER}DONE_multiple_k${MAXALL}.SAM
 
-rm ${FOLDER}trashreads_exons.txt ${FOLDER}trashreads_rtRNAM.txt ${FOLDER}multiple_noexons_nortRNAM.SAM
+rm ${FOLDER}trashreads.txt ${FOLDER}multiple_noexons_nortRNAM.SAM
 
 echo "Multiple mapped reads left:" >>  ${SUMMARY_T}
 cut -f 2 ${FOLDER}reads_passed.txt | sort --parallel ${NUMPR} | uniq -c >> ${SUMMARY_T}
@@ -115,7 +125,7 @@ cut -f 2 ${FOLDER}reads_passed.txt | sort --parallel ${NUMPR} | uniq -c >> ${SUM
 samtools view -@ ${NUMPR} -b ${FOLDER}DONE_multiple_k${MAXALL}.SAM -t ${FOLDER}header_mod.txt > ${FOLDER}DONE_multiple_k${MAXALL}.BAM
 mv ${FOLDER}uniq_noexons_nortRNAM.BAM ${FOLDER}DONE_uniq_k${MAXALL}.BAM
 
-rm  ${FOLDER}rtRNAchrM.BAM ${FOLDER}header_mod.txt  ${FOLDER}DONE_multiple_k${MAXALL}.SAM  ${FOLDER}reads_passed.txt
+rm ${FOLDER}header_mod.txt  ${FOLDER}DONE_multiple_k${MAXALL}.SAM  ${FOLDER}reads_passed.txt
 
 samtools view -@ ${NUMPR} -F 256 -b -h ${FOLDER}DONE_multiple_k${MAXALL}.BAM > ${FOLDER}multiple.BAM
 samtools fastq -n ${FOLDER}multiple.BAM > ${FOLDER}multiple4random.fastq 2>/dev/null
