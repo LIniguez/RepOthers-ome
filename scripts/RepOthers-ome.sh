@@ -45,8 +45,8 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hS:' OPTION;do
   echo "Usage:">&2
   echo -e " Elseome [options] -b <bowtie2-index> -e <gene_annotations> -r <removable_regions> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}">&2
   echo -e "  <bowtie2-index>\tIndex filename prefix of bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)" >&2
-  echo -e "  <gene_annotations>\tGene annotations, gtf format, gene and transcript unique count. " >&2
-  echo -e "  <removable_regions>\tRemovable regions, bed format, regions not willing to be count treated as black holes" >&2
+  echo -e "  <gene_annotations>\tGene annotations, gtf/bed format, gene and transcript unique count. (.gtf counts gene and transcript reads and bed only outputs .bam to selected regions) " >&2
+  echo -e "  <removable_regions>\tRemovable regions, gtf/bed format, regions not willing to be count treated as black holes" >&2
   echo -e "  <fastq>\tFastq for unpaired experiments" >&2
   echo -e "  <_1.fastq>\tFastq for left pair" >&2
   echo -e "  <_2.fastq>\tFastq for right pair" >&2
@@ -141,7 +141,34 @@ folder5=${folder_gral}transcripts/
 folder6=${folder_gral}network/
 randfastq=${folder_gral}for_random.fq
 out_rand=${folder_gral}random
+delete_rt=0
 
+if [ ${exons: -4} == ".gtf" ]
+then
+ awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}exons_anotation.bed
+else
+ if [ ${exons: -4} == ".bed" ]
+ then
+  mv $exons ${folder_gral}exons_anotation.bed
+ else
+  echo "File extenssions not recognized (only bed/gtf accepted)" >&2 && exit 1
+ fi
+fi
+
+if [ ${rtRNA_MChr: -4} == ".gtf" ]
+then
+ awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}temp_rt.bed
+ rtRNA_MChr=${folder_gral}temp_rt.bed
+ delete_rt=1
+else
+ if [ ${rtRNA_MChr: -4} != ".bed" ]
+ then
+ echo "File extenssions not recognized (only bed/gtf accepted)" >&2 && exit 1
+ fi
+fi
+
+
+awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${rtRNA_MChr}
 
 if [ $startin == "4" ]
 then
@@ -150,7 +177,7 @@ then
   perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq1} 1 >${fastq}
   perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq2} 2 >>${fastq}
  fi
- awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}exons_anotation.bed
+
  >${folder_gral}summary.txt
  >${folder_gral}RepOthers-ome.log
  mkdir -p ${folder1}
@@ -227,7 +254,7 @@ then
  echo $cutoff >>${folder_gral}summary.txt
  echo "Done"
 
- echo "Geting possible RepOthers"
+ echo "Geting possible Elements"
  samtools view -H ${folder1}exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" | grep -v '_' >${folder_gral}gen4bedt.txt
  samtools view -H ${folder1}exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t"| grep -v '_'  >${folder_gral}gen4samt.txt
  coverage2transcrip.sh ${numpro} ${folder5} ${folder1} ${folder2} ${folder3} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${mincov} ${cutoff} &>> ${folder_gral}RepOthers-ome.log
@@ -279,14 +306,20 @@ then
    count_transcripts.R ${folder_gral}RepOthers_splicing.bam ${folder_gral}RepOthers.gtf transcript gene_id ${folder_gral}RepOthers_splicing TRUE &>> ${folder_gral}RepOthers-ome.log
    samtools merge -f ${folder_gral}Exons_temp.bam ${folder1}exons_sorted.BAM ${folder2}exons_sorted.BAM ${folder3}exons_sorted.BAM ${folder4}exons_sorted.BAM &>> ${folder_gral}RepOthers-ome.log
    samtools sort -@ ${numpro} ${folder_gral}Exons_temp.bam -o ${folder_gral}Exons.bam &>> ${folder_gral}RepOthers-ome.log
-   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene TRUE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
-   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript TRUE &>> ${folder_gral}RepOthers-ome.log
+   if [ ${exons: -4} == ".gtf" ]
+   then
+   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene TRUE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does include spliced reads
+   count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript FALSE &>> ${folder_gral}RepOthers-ome.log
+   fi
    rm -r $folder1 $folder2 $folder3 $folder4 $folder5 $folder6
   else
     samtools merge -f ${folder_gral}Exons_temp.bam ${folder1}exons_sorted.BAM ${folder2}exons_sorted.BAM ${folder3}exons_sorted.BAM &>> ${folder_gral}RepOthers-ome.log
     samtools sort -@ ${numpro} ${folder_gral}Exons_temp.bam -o ${folder_gral}Exons.bam &>> ${folder_gral}RepOthers-ome.log
+    if [ ${exons: -4} == ".gtf" ]
+    then
     count_transcripts.R ${folder_gral}Exons.bam ${exons} exon gene_id ${folder_gral}Gene FALSE &>> ${folder_gral}RepOthers-ome.log #Counting Genes and Transcript does not include spliced reads
     count_transcripts.R ${folder_gral}Exons.bam ${exons} exon transcript_id ${folder_gral}Transcript FALSE &>> ${folder_gral}RepOthers-ome.log
+    fi
     mv ${unali} ${unali2}
     rm -r $folder1 $folder2 $folder3 $folder5 $folder6
 fi
@@ -294,9 +327,12 @@ fi
  rm ${folder_gral}Exons_temp.bam ${folder_gral}exons_anotation.bed
 
 
+if [ $delete_rt == 1 ]
+ then
+   rm ${folder_gral}temp_rt.bed
+fi
 
-
- if [ $paired == "TRUE" ];
+if [ $paired == "TRUE" ]
  then
   rm ${fastq}
  fi
