@@ -91,7 +91,7 @@ fi
 
 
 if [ -z "$bow_index" ]  || [ -z "$exons" ]; then echo "Not all annotations/DB needed" >&2 && exit 1;fi
-if [ -z "$rtRNA_MChr" ]; then rtRNA_MChr="NA";fi
+if [ -z "$rtRNA_MChr" ]; then rtRNA_MChr="NA.bed";fi
 if [ -z "$hi_index" ]; then hi_index="NA";fi
 
 if [ -z "$fastq1" ] || [ -z "$fastq2" ]
@@ -168,7 +168,6 @@ else
 fi
 
 
-awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${rtRNA_MChr}
 
 if [ $startin == "4" ]
 then

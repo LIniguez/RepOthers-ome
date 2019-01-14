@@ -86,7 +86,7 @@ samtools view -@ ${NUMPR} -b ${FOLDER}4knext.SAM -t ${FOLDER}header_mod.txt > ${
 samtools fastq -n ${FOLDER}4knext.BAM > ${FOLDER}4knext.fastq 2>/dev/null
 rm ${FOLDER}4knext.SAM ${FOLDER}4knext.BAM ${FOLDER}readcount.txt ${FOLDER}multreads_done.txt ${FOLDER}best_alscor.txt ${FOLDER}mult_readcount.txt
 
-if [ $RTRNACHRM != "NA" ]
+if [ $RTRNACHRM != "NA.bed" ]
 then
  samtools view -@ ${NUMPR} -b -h -L ${RTRNACHRM} -U ${FOLDER}uniq_nortRNAM.BAM -t ${FOLDER}header_mod.txt ${FOLDER}unique.SAM > ${FOLDER}rtRNAchrM.BAM
  samtools view -@ ${NUMPR} -b -h -L ${EXONS} -U ${FOLDER}uniq_noexons_nortRNAM.BAM ${FOLDER}uniq_nortRNAM.BAM > ${FOLDER}exons_sorted.BAM
