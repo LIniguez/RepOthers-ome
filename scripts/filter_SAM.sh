@@ -30,7 +30,7 @@ done
 
 
 
-grep -P '@SQ' ${FOLDER}header.txt| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" >${FOLDER}header_mod.txt
+grep -P '@SQ' ${FOLDER}header.txt| awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t"|sort -Vk1,1 >${FOLDER}header_mod.txt  #igual y se puede ordernar para que no haya problemas despues
 
 
 rm ${FOLDER}header.txt
