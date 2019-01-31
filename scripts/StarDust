@@ -231,7 +231,10 @@ if [ $startin == "count" ]; then
   ok=1
 fi
 
-if [ $remove -eq 1 ] && [ $ok -eq 1 ]; then rm -r $folder1 $folder2 $folder3 $folder4 $folder5 $folder6;fi
+if [ $remove -eq 1 ] && [ $ok -eq 1 ]; then rm -r $folder1 $folder2 $folder3 $folder5 $folder6
+ if [ $hi_index != "NA" ];then rm -r $folder4;fi
+fi
+
 
 
 if [ $ok -eq 1 ]; then rm ${folder_gral}exons_anotation.bed
