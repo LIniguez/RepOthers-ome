@@ -12,7 +12,7 @@ FASQ=$6
 FOLDOUT=$7
 FLDG=$8
 RT=$9
-SCR=${10}
+SRC=${10}
 
 
 check_sam(){
@@ -43,4 +43,4 @@ else
   fi
 fi
 
-bash ${SCR}/scripts_sd/filter_SAM.sh -p ${NPRO} -f ${FOLDOUT} -s ${FLDG}summary.txt -e ${FLDG}exons_anotation.bed -r ${RT} -M ${K} &>> ${FLDG}StarDust.log
+bash ${SRC}/scripts_sd/filter_SAM.sh -p ${NPRO} -f ${FOLDOUT} -s ${FLDG}summary.txt -e ${FLDG}exons_anotation.bed -r ${RT} -M ${K} &>> ${FLDG}StarDust.log
