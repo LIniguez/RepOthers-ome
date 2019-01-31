@@ -51,7 +51,7 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hkS:c:g:' OPTION;do
   printf "  -r\t<removable_regions>\tRemovable regions, gtf/bed format, regions not willing to be count treated as black holes\n" >&2
   printf "  -g\t<Genome.fasta>\tGenome used to filter regions based on dinucleotide content\n" >&2
   printf "  -k\tTurns off the removal of tempral files\n" >&2
-  printf "  -c\tGC/AT conent filter, if dinucleotide content is greather than -c region is removed [0-1]\n" >&2
+  printf "  -c\tSingle nucleotide content filter, if a nucleotide content is greather than -c region is removed [0-1], -g should be provided\n" >&2
   printf "  -h\tThis help messege\n">&2
   exit 1
   ;;

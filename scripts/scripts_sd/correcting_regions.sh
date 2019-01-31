@@ -12,6 +12,14 @@ GCTA=$6
 GENO=$7
 MNC=$8
 
+
+
+thfunc(){
+ awk -v TR="$1" '{if ($13~ /^[0-9]+$/){
+   a=$7/$13;c=$8/$13;g=$9/$13;t=$10/$13;
+   if(a<TR && c<TR && g<TR && t<TR){print $0;}}}' OFS="\t"
+ }
+
 awk '{if($5==1)print $1,$2,$3;}' OFS="\t" ${FLD5}regions_filtered_sorted.bed | sort -V -k1,1 -k2,2n | uniq > ${FLDGR}transcripts_solved_telescope.bed
 perl -e '{open(IN,"$ARGV[0]"); while($l=<IN>){ chomp $l; @vec=split("\t",$l); $temp=join("_",@vec);$h{$temp}=1; }close(IN);
  open(FIL,"$ARGV[1]"); while($l=<FIL>){chomp $l; @vec=split("\t",$l); pop @vec; $temp=join("_",@vec); if(!$h{$temp}){print "$l\n";}}}' ${FLDGR}transcripts_solved_telescope.bed ${FLD5}regions_sorted_coverage_filtered.bed > ${FLDGR}transcripts_unique.bed
@@ -34,7 +42,7 @@ else
 fi
 if [ $GCTA != "NA" ]
 then
-bedtools nuc -fi ${GENO} -bed ${FLDGR}StarDust.bed |awk -v THRS="$GCTA" '{if($5<THRS && $6<THRS){print $1,$2,$3,$4;} }' OFS='\t' >${FLDGR}temp.bed
+cut -f 1,2,3,4 ${FLDGR}StarDust.bed| bedtools nuc -fi ${GENO} -bed stdin |thfunc ${GCTA} >${FLDGR}temp.bed
 mv ${FLDGR}temp.bed ${FLDGR}StarDust.bed
 samtools view -@ ${NPRO} -b -L ${FLDGR}StarDust.bed ${FLDGR}StarDust.bam > ${FLDGR}temp.bam
 mv ${FLDGR}temp.bam ${FLDGR}StarDust.bam
