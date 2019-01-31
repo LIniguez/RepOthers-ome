@@ -184,6 +184,7 @@ if [ $startin == "rand" ]; then
 fi
 
 if [ $startin == "elem" ]; then
+  mkdir -p ${folder5}
   if [ -f ${folder1}exons_sorted.BAM ] && [ -f ${folder1}DONE_uniq.BAM ] && [ -f ${folder2}DONE_uniq.BAM ] && [ -f ${folder3}DONE_uniq.BAM ]; then
    if [ -z $cutoff ] && [ -z $mincov ]; then
      cutoff=$(grep 'Coverage Cutoff' ${folder_gral}summary.txt |tail -n 1| cut -f 2)
