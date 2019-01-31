@@ -6,7 +6,7 @@ set -u
 numpro=1;startin=4;folder_gral=./;name=""
 bow_index="";rtRNA_MChr="";exons="";hi_index="";fastq1="";fastq2=""
 fastq="";gcthreshold="NA";genome="NA";cutoff="";mincov="";remove=1;ok=0
-
+seed=22062018
 
 
 while getopts 'n:p:b:r:e:o:i:1:2:U:hkS:c:g:' OPTION;do
@@ -129,7 +129,7 @@ if [ $startin == "4" ];then
  >${folder_gral}summary.txt; >${folder_gral}StarDust.log; mkdir -p ${folder1}
  printf "Mapping\n\tBowtie2 -k4\t"
  #First Bowtie2 with a small number of possible alignments
- bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 ${unali} ${numpro} 4 ${bow_index} ${fastq} ${folder1} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+ bash ${pathsd}/scripts_sd/run_bowtie2.sh ${seed} ${unali} ${numpro} 4 ${bow_index} ${fastq} ${folder1} ${folder_gral} ${rtRNA_MChr} ${pathsd}
  fastx_collapser -i ${folder1}4knext.fastq -o ${folder1}4knext.fasta
  rm ${folder1}4knext.fastq
  if [ $paired == "TRUE" ]; then rm ${fastq}; fi
@@ -141,7 +141,7 @@ if [ $startin == "100" ];then
  mkdir -p ${folder2}
  printf "\tBowtie2 -k100\t"
  if [ -f ${folder1}4knext.fasta ] && [ -f ${folder1}multiple4random.fastq ];then
-  bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 NA ${numpro} 100 ${bow_index} ${folder1}4knext.fasta ${folder2} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+  bash ${pathsd}/scripts_sd/run_bowtie2.sh ${seed} NA ${numpro} 100 ${bow_index} ${folder1}4knext.fasta ${folder2} ${folder_gral} ${rtRNA_MChr} ${pathsd}
  else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
  printf "Done\n"
  startin="500"
@@ -151,7 +151,7 @@ if [ $startin == "500" ];then
  mkdir -p ${folder3}
  printf "\tBowtie2 -k500\t"
  if [ -f ${folder2}4knext.fastq ] && [ -f ${folder2}multiple4random.fastq ];then
-   bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 NA ${numpro} 500 ${bow_index} ${folder2}4knext.fastq ${folder3} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+   bash ${pathsd}/scripts_sd/run_bowtie2.sh ${seed} NA ${numpro} 500 ${bow_index} ${folder2}4knext.fastq ${folder3} ${folder_gral} ${rtRNA_MChr} ${pathsd}
  else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
  printf "Done\n"
  startin="hisat"
@@ -163,7 +163,7 @@ if [ $startin == "hisat" ]; then
     mkdir -p ${folder4}
     printf " hisat2\t"
     #hisat2
-    hisat2 --seed 22062018 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}StarDust.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
+    hisat2 --seed ${seed} --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}StarDust.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
     printf -e "\nSpliced Reads\n" >> ${folder_gral}summary.txt
     bash ${pathsd}/scripts_sd/filter_SAM.sh -p ${numpro} -f ${folder4} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 500 &>> ${folder_gral}StarDust.log
     sort -V -k1,1 -k2,2n ${folder_gral}novel.spli.bed > ${folder_gral}splicesites_sorted.bed
@@ -205,7 +205,7 @@ if [ $startin == "telesc" ]; then
   if [ ! -f ${folder5}ALL.BAM ] || [ ! -f ${folder_gral}gen4samt.txt ] || [ ! -f ${folder_gral}gen4bedt.txt ] || [ ! -f ${folder5}regions_filtered_sorted.bed ] || [ ! -f ${folder5}regions_sorted_coverage_filtered.bed ] || [ ! -f ${folder5}vertex_weight.txt ]
   then printf "Could not proceed last step was not concluded or something got missing\n" >&2 && exit 1; fi
   if [ $(wc -c ${folder5}vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
-  then sh ${pathsd}/scripts_sd/network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${pathsd}/scripts_sd/ &>> ${folder_gral}StarDust.log
+  then sh ${pathsd}/scripts_sd/network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${pathsd}/scripts_sd/ ${seed} &>> ${folder_gral}StarDust.log
   fi
   rm ${folder_gral}gen4bedt.txt ${folder_gral}gen4samt.txt
   printf "Done\nCorrecting regions\t"

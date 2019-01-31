@@ -6,6 +6,7 @@ samp<-args[1]
 round<-args[2]
 maximum<-as.numeric(args[3])
 rand_net<-as.numeric(args[4])
+sel_seed<-args[5]
 
 
 infile<-paste(samp,"vertex_weight.txt",sep="")
@@ -16,7 +17,7 @@ net<-graph_from_data_frame(data[,c(1,2)],directed = F)
 
 E(net)$weight<-data[,6]
 
-set.seed(25072018)
+set.seed(sel_seed)
 index_rand<-sample(1:length(V(net)))
 wt<-list()
 for (i in 1:(as.integer(length(V(net))/rand_net)+1)){
@@ -41,7 +42,7 @@ sapply(wt, function(x,m=maximum){
         file_list[[cont1]]<<-c(file_list[[cont1]],as.character(names(membership(x)[is.element(membership(x), names(tam_WT[j:i]))])))
 	cont1<<-cont1+1
 	file_list[[cont1]]<<-character()
-	j<-i 
+	j<-i
      }
   }
   file_list[[cont1]]<<-c(as.character(names(membership(x)[is.element(membership(x), names(tam_WT[j:length(tam_WT)]))])))
@@ -53,4 +54,3 @@ for (i in 1:length(file_list)){
 	write.table(file_list[[i]][!is.na(file_list[[i]])],
 		file=tempout,sep="\t",quote=F)
 }
-

@@ -12,6 +12,7 @@ FOLDERO=$5
 GEN4SMT=$6
 GEN4BDT=$7
 WHERE=$8
+SEED=$9
 BED=${FOLDER}regions_sorted_coverage_filtered.bed
 
 
@@ -25,7 +26,7 @@ size_wei=$(echo $(wc -c ${FOLDERO}vertex_weight.txt)| cut -f1 -d ' ')
 
 while [ $size_wei -gt 0 ];
 do
- Rscript ${WHERE}find_communities.R ${FOLDERO} ${i} ${MAX} ${WTM} 2>/dev/null
+ Rscript ${WHERE}find_communities.R ${FOLDERO} ${i} ${MAX} ${WTM} ${SEED} 2>/dev/null
 
  sh ${WHERE}mod_txt2gtf.sh ${FOLDERO} ${i}
  ls ${FOLDERO}*_${i}.gtf | parallel -j ${NUMPRO} -q telescope assign --outdir ${FOLDERO} --tempdir ${FOLDERO} --quiet --exp_tag ${i}round_'{= s:_WT.+::; s:^.+${FOLDERO}/::; =}' --updated_sam ${FOLDERO}${i}.SAM {}
