@@ -11,7 +11,6 @@ BI=$5
 FASQ=$6
 FOLDOUT=$7
 FLDG=$8
-EXO=${FLDG}exons_anotation.bed
 RT=$9
 SCR=${10}
 
