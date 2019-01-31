@@ -1,0 +1,284 @@
+#!/bin/bash
+
+set -e
+set -u
+
+numpro=1;startin=4;folder_gral=./;name=""
+bow_index="";rtRNA_MChr="";exons="";hi_index="";fastq1="";fastq2=""
+fastq="";gcthreshold="NA";genome="NA";cutoff="";mincov="";remove=1;ok=0
+
+
+
+while getopts 'n:p:b:r:e:o:i:1:2:U:hkS:c:g:' OPTION;do
+ case "$OPTION" in
+ n)
+  name=$OPTARG
+  ;;
+ p)
+  numpro=$OPTARG
+  ;;
+ b)
+  bow_index=$OPTARG
+  ;;
+ r)
+  rtRNA_MChr=$OPTARG
+  ;;
+ e)
+  exons=$OPTARG
+  ;;
+ o)
+  folder_gral=$OPTARG
+  ;;
+ i)
+  hi_index=$OPTARG
+  ;;
+ h)
+  printf "StarDust version 1.0 by Luis Pedro Iniguez (lpr4001@med.cornell.edu)\n">&2
+  printf "Usage:\n">&2
+  printf " %s [options] -b <bowtie2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2
+  printf "  <bowtie2-index>\tIndex filename prefix of bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)\n" >&2
+  printf "  <gene_annotations>\tGene annotations, gtf/bed format, gene and transcript unique count. (.gtf counts gene and transcript reads and bed only outputs .bam to selected regions)\n" >&2
+  printf "  <fastq>\tFastq for unpaired experiments\n" >&2
+  printf "  <_1.fastq>\tFastq for left pair\n" >&2
+  printf "  <_2.fastq>\tFastq for right pair\n" >&2
+  printf "\n NOTE: Annotations and chromosome coordenates should be chr[\d+|\w+] not only [\d+|\w+], this is for bowtie indexes as well as gtf/bed files used.\n" >&2
+  printf "\n\n Options (default):\n" >&2
+  printf "  -i\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)\n" >&2
+  printf "  -n\tName prefix\n">&2
+  printf "  -o\tOutput folder (./)\n">&2
+  printf "  -S\tWhere to start StarDust [options: 4,100,500,hisat,rand,elem,telesc,count] (4)\n">&2
+  printf "  -p\tNumber of threads to launch (1)\n">&2
+  printf "  -r\t<removable_regions>\tRemovable regions, gtf/bed format, regions not willing to be count treated as black holes\n" >&2
+  printf "  -g\t<Genome.fasta>\tGenome used to filter regions based on dinucleotide content\n" >&2
+  printf "  -k\tTurns off the removal of tempral files\n" >&2
+  printf "  -c\tGC/AT conent filter, if dinucleotide content is greather than -c region is removed [0-1]\n" >&2
+  printf "  -h\tThis help messege\n">&2
+  exit 1
+  ;;
+ k)
+  remove=0
+  ;;
+ 1)
+  fastq1=$OPTARG
+  ;;
+ 2)
+  fastq2=$OPTARG
+  ;;
+ U)
+  fastq=$OPTARG
+  ;;
+ S)
+  startin=$OPTARG
+  ;;
+  g)
+  genome=$OPTARG
+  ;;
+  c)
+  gcthreshold=$OPTARG
+  ;;
+ ?)
+  printf  "script usage: %s [options] -b <bowtie2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2 #mensaje de ayuda para correr comando en caso de que haya un parametro que no venga al caso
+  exit 1
+  ;;
+ esac
+done
+
+
+
+
+mkdir -p ${folder_gral}
+if [ -z "$name" ];then folder_gral=$(echo $folder_gral"/");else folder_gral=$(echo $folder_gral"/"$name"_");fi
+if [ -z "$bow_index" ]  || [ -z "$exons" ]; then printf "Not all annotations/DB needed\n" & printf  "script usage: %s [options] -b <bowtie2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2 && exit 1;fi
+if [ -z "$rtRNA_MChr" ]; then rtRNA_MChr="NA.bed";fi
+if [ -z "$hi_index" ]; then hi_index="NA";fi
+if [ -z "$fastq1" ] || [ -z "$fastq2" ];then
+ if [ -z "$fastq" ];then printf "Missing fastq file(s)" & printf  "script usage: %s [options] -b <bowtie2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2 && exit 1;else paired=FALSE;fi
+else paired=TRUE; fastq=${folder_gral}joined.fastq;fi
+if [ $gcthreshold != "NA" ];then
+ if (( $(echo "$gcthreshold < 0" |bc -l) )) || (( $(echo "$gcthreshold > 1" |bc -l) )) ; then printf "GC/AT threshold should be between 0 and 1\n" >&2 && exit 1;fi
+ if [ "$genome" == "NA" ]; then printf "Missing genome file GC/AT threshold is used with the a genome fasta file\n" >&2 && exit 1;fi
+fi
+
+
+pathsd=$(which $0 | rev | cut -f1 -d"/" --complement | rev);sh ${pathsd}/scripts_sd/logo.sh
+unali=${folder_gral}unalign_temp.gz;unali2=${folder_gral}unalign.gz
+folder1=${folder_gral}mapping_4/;folder2=${folder_gral}mapping_100/
+folder3=${folder_gral}mapping_500/;folder4=${folder_gral}mapping_splicesites/
+folder5=${folder_gral}transcripts/;folder6=${folder_gral}network/
+delete_rt=0
+
+if [ ! -f ${folder_gral}exons_anotation.bed ]
+ then if [ ${exons: -4} == ".gtf" ]; then awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}exons_anotation.bed
+      else if [ ${exons: -4} == ".bed" ]; then cp $exons ${folder_gral}exons_anotation.bed; else printf "File extenssions not recognized (only bed/gtf accepted)\n" >&2 && exit 1 ;fi
+      fi
+fi
+
+if [ -z ${folder_gral}temp_rt.bed ]
+ then if [ ${rtRNA_MChr: -4} == ".gtf" ]; then
+  awk '{if($3 == "exon")print $1,$4,$5;}' OFS="\t" ${exons} | sort --parallel ${numpro} -V -k1,1 -k2,2n |bedtools merge -i stdin >${folder_gral}temp_rt.bed
+  rtRNA_MChr=${folder_gral}temp_rt.bed;delete_rt=1
+  else if [ ${rtRNA_MChr: -4} != ".bed" ]; then printf "File extenssions not recognized (only bed/gtf accepted)\n" >&2 && exit 1 ;fi
+ fi
+fi
+
+if [ $startin == "4" ];then
+ if [ $paired == "TRUE" ];then
+  perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq1} 1 >${fastq}
+  perl -e '{open(IN,$ARGV[0]); while(<IN>){@vec=split(" ",$_);$l=$vec[0]."_".$ARGV[1]."\n"; $a=<IN>;$b=<IN>;$c=<IN>;print "$l$a+\n$c";}}' ${fastq2} 2 >>${fastq}
+ fi
+ >${folder_gral}summary.txt; >${folder_gral}StarDust.log; mkdir -p ${folder1}
+ printf "Mapping\n\tBowtie2 -k4\t"
+ #First Bowtie2 with a small number of possible alignments
+ bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 ${unali} ${numpro} 4 ${bow_index} ${fastq} ${folder1} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+ fastx_collapser -i ${folder1}4knext.fastq -o ${folder1}4knext.fasta
+ rm ${folder1}4knext.fastq
+ if [ $paired == "TRUE" ]; then rm ${fastq}; fi
+ printf "Done\n"
+ startin="100"
+fi
+
+if [ $startin == "100" ];then
+ mkdir -p ${folder2}
+ printf "\tBowtie2 -k100\t"
+ if [ -f ${folder1}4knext.fasta ] && [ -f ${folder1}multiple4random.fastq ];then
+  bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 NA ${numpro} 100 ${bow_index} ${folder1}4knext.fasta ${folder2} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+ else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
+ printf "Done\n"
+ startin="500"
+fi
+
+if [ $startin == "500" ];then
+ mkdir -p ${folder3}
+ printf "\tBowtie2 -k500\t"
+ if [ -f ${folder2}4knext.fastq ] && [ -f ${folder2}multiple4random.fastq ];then
+   bash ${pathsd}/scripts_sd/run_bowtie2.sh 22062018 NA ${numpro} 500 ${bow_index} ${folder2}4knext.fastq ${folder3} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+ else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
+ printf "Done\n"
+ startin="hisat"
+fi
+
+if [ $startin == "hisat" ]; then
+  if [ $hi_index != "NA" ]; then
+   if [ -f ${unali} ]; then
+    mkdir -p ${folder4}
+    printf " hisat2\t"
+    #hisat2
+    hisat2 --seed 22062018 --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}StarDust.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
+    printf -e "\nSpliced Reads\n" >> ${folder_gral}summary.txt
+    bash ${pathsd}/scripts_sd/filter_SAM.sh -p ${numpro} -f ${folder4} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 500 &>> ${folder_gral}StarDust.log
+    sort -V -k1,1 -k2,2n ${folder_gral}novel.spli.bed > ${folder_gral}splicesites_sorted.bed
+    rm ${folder_gral}novel.spli.bed ${unali}
+    printf "Done\n"
+   else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
+  fi
+  startin="rand"
+fi
+
+if [ $startin == "rand" ]; then
+ printf "Mapping Random\t"
+ if [ -f ${folder1}multiple4random.fastq ] && [ -f ${folder2}multiple4random.fastq ] && [ -f ${folder3}multiple4random.fastq ]; then
+   bash ${pathsd}/scripts_sd/random_mapping.sh ${folder_gral} ${folder1} ${folder2} ${folder3} ${numpro} ${bow_index} ${pathsd}
+ else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
+ printf "Done\n"
+ startin="elem"
+fi
+
+if [ $startin == "elem" ]; then
+  if [ -f ${folder1}exons_sorted.BAM ] && [ -f ${folder1}DONE_uniq.BAM ] && [ -f ${folder2}DONE_uniq.BAM ] && [ -f ${folder3}DONE_uniq.BAM ]; then
+   if [ -z $cutoff ] && [ -z $mincov ]; then
+     cutoff=$(grep 'Coverage Cutoff' ${folder_gral}summary.txt |tail -n 1| cut -f 2)
+     mincov=$(grep 'Min read length' ${folder_gral}summary.txt |tail -n 1| cut -f 2)
+     if [ -z "$cutoff" ] || [ -z "$mincov" ] || (( $(echo "! ($cutoff >= 0)" |bc -l) )) || (( $(echo "! ($mincov > 0)" |bc -l) )); then printf "Could not proceed last step was not concluded\n" >&2 && exit 1;fi
+   fi
+   printf "Geting possible Elements\t"
+   samtools view -H ${folder1}exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],b[2]}' OFS="\t" | grep -v '_' | sort -Vk1,1 >${folder_gral}gen4bedt.txt
+   samtools view -H ${folder1}exons_sorted.BAM|grep -P '(chr\d+|chr\w|chr\d+\w+)\s' | awk '{split($2,a,":"); split($3,b,":"); print a[2],1,b[2]}' OFS="\t"| grep -v '_' | sort -Vk1,1  >${folder_gral}gen4samt.txt
+   bash ${pathsd}/scripts_sd/coverage2transcrip.sh ${numpro} ${folder5} ${folder1} ${folder2} ${folder3} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${mincov} ${cutoff} &>> ${folder_gral}StarDust.log
+ else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
+ printf "Done\n"
+ startin="telesc"
+fi
+
+if [ $startin == "telesc" ]; then
+  printf "Telescope\t"
+  mkdir -p ${folder6}
+  if [ ! -f ${folder5}ALL.BAM ] || [ ! -f ${folder_gral}gen4samt.txt ] || [ ! -f ${folder_gral}gen4bedt.txt ] || [ ! -f ${folder5}regions_filtered_sorted.bed ] || [ ! -f ${folder5}regions_sorted_coverage_filtered.bed ] || [ ! -f ${folder5}vertex_weight.txt ]
+  then printf "Could not proceed last step was not concluded or something got missing\n" >&2 && exit 1; fi
+  if [ $(wc -c ${folder5}vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
+  then sh ${pathsd}/scripts_sd/network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${pathsd}/scripts_sd/ &>> ${folder_gral}StarDust.log
+  fi
+  rm ${folder_gral}gen4bedt.txt ${folder_gral}gen4samt.txt
+  printf "Done\nCorrecting regions\t"
+  if [ -z $cutoff ] && [ -z $mincov ]; then
+    cutoff=$(grep 'Coverage Cutoff' ${folder_gral}summary.txt |tail -n 1| cut -f 2)
+    mincov=$(grep 'Min read length' ${folder_gral}summary.txt |tail -n 1| cut -f 2)
+    if [ -z "$cutoff" ] || [ -z "$mincov" ] || (( $(echo "! ($cutoff >= 0)" |bc -l) )) || (( $(echo "! ($mincov > 0)" |bc -l) )); then printf "Could not proceed last step was not concluded\n" >&2 && exit 1;fi
+  fi
+  bash ${pathsd}/scripts_sd/correcting_regions.sh ${folder5} ${folder_gral} ${folder6} ${numpro} ${cutoff} ${gcthreshold} ${genome} ${mincov}
+  printf "Done\n"
+  startin="count"
+fi
+
+
+
+if [ $startin == "count" ]; then
+ printf "Final Count\t"
+ if [ -z ${folder_gral}StarDust.bam ] || [ -z ${folder_gral}StarDust.gtf ] || [ -z ${folder1}exons_sorted.BAM ] || [ -z ${folder2}exons_sorted.BAM ] || [ -z ${folder3}exons_sorted.BAM ]; then printf "Could not proceed last step was not concluded\n" >&2 && exit 1;fi
+  bash ${pathsd}/scripts_sd/count_reads.bash ${folder_gral} ${pathsd} ${hi_index} ${folder4} ${numpro} ${folder1} ${folder2} ${folder3} ${exons}
+ if [ ! -f ${unali2} ]; then mv ${unali} ${unali2}; fi
+  printf "Done\n"
+  ok=1
+fi
+
+if [ $remove -eq 1 ] && [ $ok -eq 1 ]; then rm -r $folder1 $folder2 $folder3 $folder4 $folder5 $folder6;fi
+
+
+if [ $ok -eq 1 ]; then rm ${folder_gral}exons_anotation.bed
+ if [ $delete_rt == 1 ]; then rm ${folder_gral}temp_rt.bed; fi
+ printf "###################   Thanks for using StarDust   ################################\n"
+else
+ printf "Something went wrong, please check log\n"
+fi
+
+
+#falta:
+#seguros para todos los programas y asi para que pueda ser modular la esto.
+
+
+#
+#Output _junctions.txt gives you the report of junction, multiple genes could imply 2 things either a fussion or genes in the same locus. A
+#normal splicing has only primary gene.
+#
+
+
+#Hay que hacer algo con los transcritos? Separar cuales se solucionaron con telescope o no? (info en folder5)
+
+
+
+#Hay que ponerle seguros por si no tiene instalados diversos paquetes de R o programas tipo bowtie o asi
+#bedtools.v.2.25 X
+#transcriptR X
+#samtools X
+#bowtie2 X
+#R X
+#igraph X
+#Rsubread X
+#hisat2 X
+#parallel
+#telescope
+#FASTX-Toolkit
+
+#@article{Tange2011a,
+# title = {GNU Parallel - The Command-Line Power Tool},
+# author = {O. Tange},
+# address = {Frederiksberg, Denmark},
+# journal = {;login: The USENIX Magazine},
+# month = {Feb},
+# number = {1},
+# volume = {36},
+# url = {http://www.gnu.org/s/parallel},
+# year = {2011},
+# pages = {42-47}
+#}
+
+#Annotations and Chromosome coordenates should be chrXXYY not only XXYY, this is for bowtie indexes as well as gtf/bed files used.
