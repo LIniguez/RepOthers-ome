@@ -7,11 +7,10 @@ FLD5=$1
 FLDGR=$2
 FLD6=$3
 NPRO=$4
-CTOF=$5
+CUT=$5
 GCTA=$6
 GENO=$7
 MNC=$8
-
 
 awk '{if($5==1)print $1,$2,$3;}' OFS="\t" ${FLD5}regions_filtered_sorted.bed | sort -V -k1,1 -k2,2n | uniq > ${FLDGR}transcripts_solved_telescope.bed
 perl -e '{open(IN,"$ARGV[0]"); while($l=<IN>){ chomp $l; @vec=split("\t",$l); $temp=join("_",@vec);$h{$temp}=1; }close(IN);
@@ -24,7 +23,7 @@ then
  bedtools genomecov -bg -ibam ${FLDGR}final_sorted.bam > ${FLDGR}regions.bed
  bedtools merge -d ${MNC} -i ${FLDGR}regions.bed > ${FLDGR}regions_merged.bed
  bedtools coverage -mean -sorted -a ${FLDGR}regions_merged.bed -b ${FLDGR}final_sorted.bam > ${FLDGR}cov.bed
- awk -v CUT="$CTOF" '{if (!($4 <= CUT)){ print $0;}}' ${FLDGR}cov.bed | sort -V -k1,1 -k2,2n > ${FLDGR}StarDust.bed
+ awk -v CUT="$CUT" '{if (!($4 <= CUT)){ print $0;}}' ${FLDGR}cov.bed | sort -V -k1,1 -k2,2n > ${FLDGR}StarDust.bed
  samtools view -@ ${NPRO} -b -L ${FLDGR}StarDust.bed ${FLDGR}final_sorted.bam > ${FLDGR}StarDust.bam
  rm ${FLDGR}final_sorted.bam ${FLDGR}regions.bed ${FLDGR}regions_merged.bed ${FLDGR}cov.bed ${FLDGR}transcripts_unique.bed ${FLDGR}transcripts_solved_telescope.bed
 else
