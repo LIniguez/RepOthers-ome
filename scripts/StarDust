@@ -286,3 +286,35 @@ fi
 #}
 
 #Annotations and Chromosome coordenates should be chrXXYY not only XXYY, this is for bowtie indexes as well as gtf/bed files used.
+
+#####################################################
+#   Allnvariables in subsequent scripts:
+#
+#    SEED     Seed for random number generation and reproducibility
+#    NPRO     Number of cores
+#    K        -k parameter for bowtie2
+#    I        Round for Telescope network based algorithm for solving multiple mapped reads
+#    MAX      Maximum number of annotations used in each run of Telescope
+#    WTM      Maximum size of a network for detecting communities with walktramp algorithm
+#    GCTA     Threshold for single nucleotide content
+#    BI       Bowtie2 index
+#    HIS      hisat2 index
+#    GENO     Genome fasta
+#    FASQ     fasta/fastq file
+#    UNAL     Output file for unaligned reads
+#    SRC      Path to scripts
+#    FOLDOUT  Output directory
+#    FLDG     General folder set with -o
+#    FLD1     Bowite2 -k 4 folder
+#    FLD2     Bowite2 -k 100 folder
+#    FLD3     Bowite2 -k 500 folder
+#    FLD4     hisat2 folder
+#    FLD5     Region detection folder
+#    EXO      Exon annotation
+#    RT       Regions to be removed from allignment
+#    GEN4ST   Genome annotations for samtools
+#    GEN4BT   Genome annotations for bedtools
+#    MNC      Maximum length for regions to be joined
+#    CUT      Coverage cutoff
+#
+#####################################################
