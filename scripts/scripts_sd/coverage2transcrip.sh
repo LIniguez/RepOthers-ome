@@ -7,7 +7,7 @@ FLD2=$4
 FLD3=$5
 GEN4ST=$6
 GEN4BT=$7
-MINNCOV=$8
+MNC=$8
 CUT=$9
 
 
@@ -30,15 +30,15 @@ rm ${FOLDOUT}uniq2.BAM ${FOLDOUT}multiple2.BAM
 # Ve la zonas que tienen covertura para los bam de unicos y no unicos
 ########
 bedtools genomecov -bg -ibam ${FOLDOUT}uniq.BAM > ${FOLDOUT}uniq_cov.bed
-bedtools merge -d ${MINNCOV} -i ${FOLDOUT}uniq_cov.bed > ${FOLDOUT}uniq_cov_merged.bed
+bedtools merge -d ${MNC} -i ${FOLDOUT}uniq_cov.bed > ${FOLDOUT}uniq_cov_merged.bed
 
 bedtools genomecov -bg -ibam ${FOLDOUT}multiple.BAM > ${FOLDOUT}multiple_cov.bed
-bedtools merge -d ${MINNCOV} -i ${FOLDOUT}multiple_cov.bed > ${FOLDOUT}multiple_cov_merged.bed
+bedtools merge -d ${MNC} -i ${FOLDOUT}multiple_cov.bed > ${FOLDOUT}multiple_cov_merged.bed
 ##########
 # Junta las regiones de unicos y no unicos
 ########
 cat ${FOLDOUT}multiple_cov.bed ${FOLDOUT}uniq_cov.bed | sort --parallel ${NPRO} -V -k1,1 -k2,2n > ${FOLDOUT}all_cov_sorted.bed
-bedtools merge -d ${MINNCOV} -i ${FOLDOUT}all_cov_sorted.bed > ${FOLDOUT}all_cov_merged.bed #todas las zonas
+bedtools merge -d ${MNC} -i ${FOLDOUT}all_cov_sorted.bed > ${FOLDOUT}all_cov_merged.bed #todas las zonas
 rm ${FOLDOUT}uniq_cov.bed ${FOLDOUT}multiple_cov.bed  ${FOLDOUT}all_cov_sorted.bed
 ##########
 # Calcula el Coverage de las regiones
@@ -50,7 +50,7 @@ sort --parallel ${NPRO} -V -u -k 1,3 -k 7,7 ${FOLDOUT}multiple_intersect_reads.b
 bedtools coverage -mean -sorted -a ${FOLDOUT}multiple_cov_merged.bed -b ${FOLDOUT}multiple_intersect_4cov.bed > ${FOLDOUT}multiple_4cov.bed
 
 bedtools intersect -wo -a ${FOLDOUT}all_cov_merged.bed -b ${FOLDOUT}multiple_4cov.bed ${FOLDOUT}uniq_4cov.bed | awk '{ a=$7-$6;b=$8*a;print $5,$6,$7,b,a}' OFS="\t" | sort --parallel ${NPRO} -V -k1,1 -k2,2n > ${FOLDOUT}regions_sorted_coverage.bed
-bedtools merge -d ${MINNCOV} -c 4 -o sum  -i ${FOLDOUT}regions_sorted_coverage.bed |awk '{a=$3-$2; b=$4/a; print $1,$2,$3,b}' OFS="\t" | awk -v CUT="$CUT" '{if (!($4 <= CUT)){ print $0;}}' > ${FOLDOUT}regions_sorted_coverage_filtered.bed
+bedtools merge -d ${MNC} -c 4 -o sum  -i ${FOLDOUT}regions_sorted_coverage.bed |awk '{a=$3-$2; b=$4/a; print $1,$2,$3,b}' OFS="\t" | awk -v CUT="$CUT" '{if (!($4 <= CUT)){ print $0;}}' > ${FOLDOUT}regions_sorted_coverage_filtered.bed
 
 rm ${FOLDOUT}uniq_cov_merged.bed ${FOLDOUT}multiple_cov_merged.bed ${FOLDOUT}multiple_intersect_reads.bed ${FOLDOUT}multiple_intersect_4cov.bed  ${FOLDOUT}regions_sorted_coverage.bed
 ##########
