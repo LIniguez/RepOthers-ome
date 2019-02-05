@@ -3,6 +3,8 @@
 set -e
 set -u
 
+
+
 numpro=1;startin=4;folder_gral=./;name=""
 bow_index="";rtRNA_MChr="";exons="";hi_index="";fastq1="";fastq2=""
 fastq="";gcthreshold="NA";genome="NA";cutoff="";mincov="";remove=1;ok=0
@@ -100,7 +102,9 @@ if [ $gcthreshold != "NA" ];then
 fi
 
 
-pathsd=$(which $0 | rev | cut -f1 -d"/" --complement | rev);sh ${pathsd}/scripts_sd/logo.sh
+pathsd=$(which $0 | rev | cut -f1 -d"/" --complement | rev);
+. ${pathsd}/scripts_sd/functions.sh
+logo
 unali=${folder_gral}unalign_temp.gz;unali2=${folder_gral}unalign.gz
 folder1=${folder_gral}mapping_4/;folder2=${folder_gral}mapping_100/
 folder3=${folder_gral}mapping_500/;folder4=${folder_gral}mapping_splicesites/
@@ -161,10 +165,10 @@ if [ $startin == "hisat" ]; then
   if [ $hi_index != "NA" ]; then
    if [ -f ${unali} ]; then
     mkdir -p ${folder4}
-    printf " hisat2\t"
+    printf "\thisat2\t"
     #hisat2
     hisat2 --seed ${seed} --un-bz2 ${unali2} -x ${hi_index} -U ${unali} --very-sensitive --novel-splicesite-outfile ${folder_gral}novel.spli.bed -k 500 -p ${numpro} --no-unal 2>> ${folder_gral}StarDust.log | check_sam ${folder4} | check_mult ${folder4} 500 > ${folder4}multiple.SAM
-    printf -e "\nSpliced Reads\n" >> ${folder_gral}summary.txt
+    printf "\nSpliced Reads\n" >> ${folder_gral}summary.txt
     bash ${pathsd}/scripts_sd/filter_SAM.sh -p ${numpro} -f ${folder4} -s ${folder_gral}summary.txt -e ${folder_gral}exons_anotation.bed -r ${rtRNA_MChr} -M 500 &>> ${folder_gral}StarDust.log
     sort -V -k1,1 -k2,2n ${folder_gral}novel.spli.bed > ${folder_gral}splicesites_sorted.bed
     rm ${folder_gral}novel.spli.bed ${unali}
@@ -249,7 +253,7 @@ fi
 #Instalacion, BioConda y/o Docker
 #Pagina de GitHub
 #Comentarios
-#Homologar variables
+
 
 
 #
