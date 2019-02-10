@@ -90,7 +90,7 @@ if [ $RT != "NA.bed" ]
 then
  samtools view -@ ${NPRO} -b -h -L ${RT} -U ${FOLDOUT}uniq_nortRNAM.BAM -t ${FOLDOUT}header_mod.txt ${FOLDOUT}unique.SAM > ${FOLDOUT}rtRNAchrM.BAM
  samtools view -@ ${NPRO} -b -h -L ${EXO} -U ${FOLDOUT}uniq_noexons_nortRNAM.BAM ${FOLDOUT}uniq_nortRNAM.BAM > ${FOLDOUT}exons_sorted.BAM
- printf "Reads unique mapped to rtRNA and chrM:" >> ${SMMRY}
+ printf "Reads unique removed:" >> ${SMMRY}
  echo $(samtools stats ${FOLDOUT}rtRNAchrM.BAM | grep -P '^SN\traw total' | cut -f 3) >> ${SMMRY}
  rm ${FOLDOUT}uniq_nortRNAM.BAM
  samtools view -@ ${NPRO} -L ${RT} -U ${FOLDOUT}multiple_nortRNAM.SAM -t ${FOLDOUT}header_mod.txt ${FOLDOUT}multiple.SAM |cut -f 1 | sort --parallel ${NPRO} -u > ${FOLDOUT}trashreads.txt
