@@ -9,10 +9,13 @@ WTM=$2
 NPRO=$3
 FLD5=$4
 FOLDOUT=$5
-GEN4ST=$6
-GEN4BT=$7
-SRC=$8
-SEED=$9
+FLDG=$6
+GEN4ST=${FLDG}gen4samt.txt
+GEN4BT=${FLDG}gen4bedt.txt
+SRC=$7
+SEED=$8
+THE=$9
+
 
 samtools view -h -@ ${NPRO} ${FLD5}ALL.BAM > ${FOLDOUT}${I}.SAM
 samtools view -H ${FOLDOUT}${I}.SAM >${FOLDOUT}header.txt
@@ -26,7 +29,7 @@ do
  Rscript ${SRC}/find_communities.R ${FOLDOUT} ${I} ${MAX} ${WTM} ${SEED} 2>/dev/null
 
  sh ${SRC}/mod_txt2gtf.sh ${FOLDOUT} ${I}
- ls ${FOLDOUT}*_${I}.gtf | parallel -j ${NPRO} -q telescope assign --outdir ${FOLDOUT} --tempdir ${FOLDOUT} --quiet --exp_tag ${I}round_'{= s:_WT.+::; s:^.+${FOLDOUT}/::; =}' --updated_sam ${FOLDOUT}${I}.SAM {}
+ ls ${FOLDOUT}*_${I}.gtf | parallel -j ${NPRO} -q telescope assign --outdir ${FOLDOUT} --logfile ${FLDG}StarDust.log --theta_prior ${THE} --tempdir ${FOLDOUT} --quiet --exp_tag ${I}round_'{= s:_WT.+::; s:^.+${FOLDOUT}/::; =}' --updated_sam ${FOLDOUT}${I}.SAM {}
  for j in $(find ${FOLDOUT}*_${I}.gtf)
  do
   k=$(echo $j| rev | cut -f 4 -d "_" | cut -f 1 -d "/"| rev)

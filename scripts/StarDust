@@ -210,7 +210,7 @@ if [ $startin == "telesc" ]; then
   if [ ! -f ${folder5}ALL.BAM ] || [ ! -f ${folder_gral}gen4samt.txt ] || [ ! -f ${folder_gral}gen4bedt.txt ] || [ ! -f ${folder5}regions_filtered_sorted.bed ] || [ ! -f ${folder5}regions_sorted_coverage_filtered.bed ] || [ ! -f ${folder5}vertex_weight.txt ]
   then printf "Could not proceed last step was not concluded or something got missing\n" >&2 && exit 1; fi
   if [ $(wc -c ${folder5}vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
-  then sh ${pathsd}/scripts_sd/network_analysis.sh 10000 75000 ${numpro} ${folder5} ${folder6} ${folder_gral}gen4samt.txt ${folder_gral}gen4bedt.txt ${pathsd}/scripts_sd/ ${seed} &>> ${folder_gral}StarDust.log
+  then theta=20000;maxTel=10000;maxNet=75000;sh ${pathsd}/scripts_sd/network_analysis.sh ${maxTel} ${maxNet} ${numpro} ${folder5} ${folder6} ${folder_gral} ${pathsd}/scripts_sd/ ${seed} ${theta}&>> ${folder_gral}StarDust.log
   fi
   rm ${folder_gral}gen4bedt.txt ${folder_gral}gen4samt.txt
   printf "Done\nCorrecting regions\t"
@@ -236,7 +236,7 @@ if [ $startin == "count" ]; then
 fi
 
 if [ $remove -eq 1 ] && [ $ok -eq 1 ]; then rm -r $folder1 $folder2 $folder3 $folder5 $folder6
- if [ $hi_index != "NA" ];then rm -r $folder4;fi
+ if [ -d $folder4 ];then rm -r $folder4;fi
 fi
 
 
@@ -323,5 +323,6 @@ fi
 #    GEN4BT   Genome annotations for bedtools
 #    MNC      Maximum length for regions to be joined
 #    CUT      Coverage cutoff
+#    The      Theta prior for thelescope
 #
 #####################################################
