@@ -10,11 +10,13 @@ FLD3=$4
 NPRO=$5
 BI=$6
 SRC=$7
-
+SEED=$8
 
 
 cat ${FLD1}multiple4random.fastq ${FLD2}multiple4random.fastq ${FLD3}multiple4random.fastq > ${FLDG}random.fastq
 bowtie2 --seed 22062018 -p ${NPRO} --very-sensitive-local --score-min L,0,1.6 --very-sensitive-local -x ${BI} -U ${FLDG}random.fastq 2>> ${FLDG}StarDust.log | samtools view -bS -@ ${NPRO} > ${FLDG}random.BAM
+#hisat2 --seed ${SEED} --no-unal --score-min L,0,-0.4 -p ${NPRO} --very-sensitive -x ${BI} -U ${FLDG}random.fastq 2>> ${FLDG}StarDust.log | samtools view -bS -@ ${NPRO} > ${FLDG}random.BAM
+samtools view -H ${FLDG}random.BAM > ${FLDG}header.SAM
 samtools cat -o ${FLDG}random_all_rand.BAM ${FLD1}DONE_uniq.BAM ${FLD2}DONE_uniq.BAM ${FLD3}DONE_uniq.BAM ${FLDG}random.BAM &>> ${FLDG}StarDust.log
 samtools sort -@ ${NPRO} ${FLDG}random_all_rand.BAM -o ${FLDG}random_all_rand_sorted.BAM &>> ${FLDG}StarDust.log
 rm ${FLDG}random_all_rand.BAM ${FLDG}random.BAM

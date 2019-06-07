@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 set -e
 set -u
 
@@ -37,15 +38,15 @@ while getopts 'n:p:b:r:e:o:i:1:2:U:hkS:c:g:' OPTION;do
  h)
   printf "StarDust version 1.0 by Luis Pedro Iniguez (lpr4001@med.cornell.edu)\n">&2
   printf "Usage:\n">&2
-  printf " %s [options] -b <bowtie2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2
+  printf " %s [options] -b <bowtie2-index> -i <hisat2-index> -e <gene_annotations> {-U <fastq> |-1 <_1.fastq> -2 <_2.fastq>}\n" $(basename $0) >&2
   printf "  <bowtie2-index>\tIndex filename prefix of bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)\n" >&2
+  printf "  <hisat2-index>\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)\n" >&2
   printf "  <gene_annotations>\tGene annotations, gtf/bed format, gene and transcript unique count. (.gtf counts gene and transcript reads and bed only outputs .bam to selected regions)\n" >&2
   printf "  <fastq>\tFastq for unpaired experiments\n" >&2
   printf "  <_1.fastq>\tFastq for left pair\n" >&2
   printf "  <_2.fastq>\tFastq for right pair\n" >&2
   printf "\n NOTE: Annotations and chromosome coordenates should be chr[\d+|\w+] not only [\d+|\w+], this is for bowtie indexes as well as gtf/bed files used.\n" >&2
   printf "\n\n Options (default):\n" >&2
-  printf "  -i\tIndex filename prefix of hisat2 (https://ccb.jhu.edu/software/hisat2/index.shtml)\n" >&2
   printf "  -n\tName prefix\n">&2
   printf "  -o\tOutput folder (./)\n">&2
   printf "  -S\tWhere to start StarDust [options: 4,100,500,hisat,rand,elem,telesc,count] (4)\n">&2
@@ -103,7 +104,7 @@ fi
 
 
 pathsd=$(which $0 | rev | cut -f1 -d"/" --complement | rev);
-. ${pathsd}/scripts_sd/functions.sh
+source ${pathsd}/scripts_sd/functions.sh
 logo
 unali=${folder_gral}unalign_temp.gz;unali2=${folder_gral}unalign.gz
 folder1=${folder_gral}mapping_4/;folder2=${folder_gral}mapping_100/
@@ -155,11 +156,12 @@ if [ $startin == "500" ];then
  mkdir -p ${folder3}
  printf "\tBowtie2 -k500\t"
  if [ -f ${folder2}4knext.fastq ] && [ -f ${folder2}multiple4random.fastq ];then
-   bash ${pathsd}/scripts_sd/run_bowtie2.sh ${seed} NA ${numpro} 500 ${bow_index} ${folder2}4knext.fastq ${folder3} ${folder_gral} ${rtRNA_MChr} ${pathsd}
+   bash ${pathsd}/scripts_sd/run_bowtie2.sh ${seed} NA ${numpro} 500 ${hi_index} ${folder2}4knext.fastq ${folder3} ${folder_gral} ${rtRNA_MChr} ${pathsd}
  else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
  printf "Done\n"
  startin="hisat"
 fi
+
 
 if [ $startin == "hisat" ]; then
   if [ $hi_index != "NA" ]; then
@@ -181,7 +183,7 @@ fi
 if [ $startin == "rand" ]; then
  printf "Mapping Random\t"
  if [ -f ${folder1}multiple4random.fastq ] && [ -f ${folder2}multiple4random.fastq ] && [ -f ${folder3}multiple4random.fastq ]; then
-   bash ${pathsd}/scripts_sd/random_mapping.sh ${folder_gral} ${folder1} ${folder2} ${folder3} ${numpro} ${bow_index} ${pathsd}
+   bash ${pathsd}/scripts_sd/random_mapping.sh ${folder_gral} ${folder1} ${folder2} ${folder3} ${numpro} ${bow_index} ${pathsd} ${seed}
  else printf "Could not proceed last step was not concluded\n" >&2 && exit 1; fi
  printf "Done\n"
  startin="elem"
@@ -210,7 +212,7 @@ if [ $startin == "telesc" ]; then
   if [ ! -f ${folder5}ALL.BAM ] || [ ! -f ${folder_gral}gen4samt.txt ] || [ ! -f ${folder_gral}gen4bedt.txt ] || [ ! -f ${folder5}regions_filtered_sorted.bed ] || [ ! -f ${folder5}regions_sorted_coverage_filtered.bed ] || [ ! -f ${folder5}vertex_weight.txt ]
   then printf "Could not proceed last step was not concluded or something got missing\n" >&2 && exit 1; fi
   if [ $(wc -c ${folder5}vertex_weight.txt | cut -f1 -d ' ') -gt 0 ]
-  then theta=20000;maxTel=10000;maxNet=75000;sh ${pathsd}/scripts_sd/network_analysis.sh ${maxTel} ${maxNet} ${numpro} ${folder5} ${folder6} ${folder_gral} ${pathsd}/scripts_sd/ ${seed} ${theta}&>> ${folder_gral}StarDust.log
+  then theta=200000;maxTel=15000;maxNet=30000;sh ${pathsd}/scripts_sd/network_analysis.sh ${maxTel} ${maxNet} ${numpro} ${folder5} ${folder6} ${folder_gral} ${pathsd}/scripts_sd/ ${seed} ${theta}&>> ${folder_gral}StarDust.log
   fi
   rm ${folder_gral}gen4bedt.txt ${folder_gral}gen4samt.txt
   printf "Done\nCorrecting regions\t"
@@ -278,6 +280,10 @@ fi
 #parallel
 #telescope
 #FASTX-Toolkit
+
+#conda install bedtools=2.25 bioconductor-transcriptr samtools bowtie2 bioconductor-rsubread hisat2 telescope fastx_toolkit
+# in R install.packages("igraph")
+
 
 #@article{Tange2011a,
 # title = {GNU Parallel - The Command-Line Power Tool},

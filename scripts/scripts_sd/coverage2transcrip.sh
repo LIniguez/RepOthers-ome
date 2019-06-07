@@ -21,6 +21,8 @@ samtools cat -o ${FOLDOUT}ALL.BAM ${FOLDOUT}uniq.BAM ${FOLDOUT}multiple.BAM
 
 samtools view -@ ${NPRO} -b -L ${GEN4ST} ${FOLDOUT}uniq.BAM > ${FOLDOUT}uniq2.BAM
 samtools view -@ ${NPRO} -b -L ${GEN4ST} ${FOLDOUT}multiple.BAM > ${FOLDOUT}multiple2.BAM
+
+
 samtools sort -@ ${NPRO} -o ${FOLDOUT}uniq.BAM ${FOLDOUT}uniq2.BAM
 samtools sort -@ ${NPRO} -o ${FOLDOUT}multiple.BAM ${FOLDOUT}multiple2.BAM
 
@@ -57,15 +59,17 @@ rm ${FOLDOUT}uniq_cov_merged.bed ${FOLDOUT}multiple_cov_merged.bed ${FOLDOUT}mul
 # OUTPUT
 ########
 
-bedtools intersect -wo -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}multiple_4cov.bed ${FOLDOUT}uniq_4cov.bed | sort --parallel ${NPRO} -V -k 6,6 -k 7,7 > ${FOLDOUT}regions_filtered_sorted.bed
+bedtools intersect -wo -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}multiple_4cov.bed ${FOLDOUT}uniq_4cov.bed | sort --parallel ${NPRO} -V -k 6,6 -k 7,7n > ${FOLDOUT}regions_filtered_sorted.bed
 rm ${FOLDOUT}uniq_4cov.bed ${FOLDOUT}multiple_4cov.bed
 
 ##########
 # Recrea el archivo para formar la red
 ########
 bedtools intersect -c -sorted -g ${GEN4BT} -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}uniq.BAM > ${FOLDOUT}all_uniq_count.bed
+#bedtools intersect -c -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}uniq.BAM > ${FOLDOUT}all_uniq_count.bed
 
 bedtools intersect -g ${GEN4BT} -sorted -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}multiple.BAM -wo |sort --parallel ${NPRO} -V -u -k 1,3 -k 8,8 > ${FOLDOUT}multiple_intersect_reads_4cov.bed
+#bedtools intersect -a ${FOLDOUT}regions_sorted_coverage_filtered.bed -b ${FOLDOUT}multiple.BAM -wo |sort --parallel ${NPRO} -V -u -k 1,3 -k 8,8 > ${FOLDOUT}multiple_intersect_reads_4cov.bed
 
 perl -e '{open(IN,"$ARGV[0]");while(<IN>){@vec=split("\t",$_);$name=$vec[0]."_".$vec[1]."_".$vec[2]; push(@{$h{$vec[7]}}, $name);}close (IN);
  foreach $k (sort keys %h){for ($cont=0;$h{$k}[$cont];$cont++){for($cont2=$cont+1;$h{$k}[$cont2];$cont2++){$out= $h{$k}[$cont]."\t".$h{$k}[$cont2];$done{$out}++;}}} undef %h;

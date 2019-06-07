@@ -3,13 +3,14 @@
 check_sam(){
  >${1}unique.SAM; >${1}best_alscor.txt; >${1}header.txt
  awk -v FOLD="$1" '{
- if($1~/^@/) {print $0 >> FOLD"header.txt";} #Remove header sequencs
- if(($2-256)<0){ #check if the alignment is the principal
-  if($13~/XS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
-   split($12,a,":");print $0 ; print $1,a[3] >> FOLD"best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
-  }else if($13~/ZS/){  #if the alignment has XS it means it has multiple positions in Bowtie2
-   split($12,a,":"); print $0 ; print $1,a[3] >> FOLD"best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
-  }else{print $0 >> FOLD"unique.SAM";}}else{ print $0 ;}}' OFS="\t"
+ if($1~/^@/) {print $0 >> FOLD"header.txt";}                              #Remove header sequencs
+ else if(($2-256)<0){                                                     #check if the alignment is the principal
+  if($13~/XS/){                                                           #if the alignment has XS it means it has multiple positions in Bowtie2
+    split($12,a,":");print $0 ; print $1,a[3] >> FOLD"best_alscor.txt";   #print it to multiple.SAM and retain the info of the alignement score
+  }else if($13~/ZS/){                                                     #if the alignment has ZS it means it has multiple positions in Bowtie2
+     split($12,a,":"); print $0 ; print $1,a[3] >> FOLD"best_alscor.txt"; #print it to multiple.SAM and retain the info of the alignement score
+  }else{print $0 >> FOLD"unique.SAM";}}
+  else{ print $0 ;}}' OFS="\t"
 }
 check_mult(){
  FOLD=$1; MAX=$2
